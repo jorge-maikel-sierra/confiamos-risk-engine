@@ -1,5 +1,6 @@
 import {
   CreateUnderwritingPayload,
+  FinancialExtractionResult,
   HumanReviewPayload,
   PaginatedUnderwritingList,
   UnderwritingRecord,
@@ -122,6 +123,25 @@ export async function verifyIntegritySeal(
   if (!res.ok) {
     throw new Error(`Error al verificar sello: ${res.statusText}`);
   }
+  return res.json();
+}
+
+export async function uploadFinancialDocument(
+  file: File
+): Promise<FinancialExtractionResult> {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const res = await fetch(`${BASE_URL}/underwritings/upload-financials`, {
+    method: "POST",
+    body: formData,
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.detail || `Error al procesar el archivo (${res.statusText})`);
+  }
+
   return res.json();
 }
 

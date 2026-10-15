@@ -1,0 +1,67 @@
+"""Esquemas Pydantic para los endpoints REST de evaluación crediticia (SPEC-01)."""
+
+from pydantic import BaseModel, Field
+
+from src.domain.state import UnderwritingVerdict
+
+
+class RawFinancialsSchema(BaseModel):
+    """Datos contables y financieros crudos enviados por el cliente."""
+
+    operating_cash_flow: float = Field(description="Flujo de caja operativo anual")
+    annual_debt_service: float = Field(ge=0.0, description="Servicio anual de deuda")
+    current_assets: float = Field(ge=0.0, description="Activo corriente total")
+    current_liabilities: float = Field(ge=0.0, description="Pasivo corriente total")
+    cash_balance: float = Field(ge=0.0, description="Saldo disponible en caja y bancos")
+    monthly_burn_rate: float = Field(default=0.0, ge=0.0, description="Gasto neto mensual")
+    negative_balance_days: int = Field(default=0, ge=0, description="Días con saldo negativo")
+    top_client_revenue_percentage: float = Field(
+        default=0.0, ge=0.0, le=100.0, description="Porcentaje de concentración del cliente top"
+    )
+
+
+class UnderwriteRequestSchema(BaseModel):
+    """Payload de entrada para iniciar la evaluación crediticia."""
+
+    associated_id: str = Field(description="Identificador del asociado de Cooperativa Confiamos")
+    business_name: str = Field(description="Razón social de la empresa o PyME solicitante")
+    requested_amount_usd: float = Field(gt=0.0, description="Monto solicitado en dólares")
+    term_months: int = Field(gt=0, le=120, description="Plazo solicitado en meses")
+    financial_data: RawFinancialsSchema = Field(description="Balances y datos contables")
+
+
+class MetricsSummarySchema(BaseModel):
+    """Resumen de indicadores determinísticos calculados por el motor matemático."""
+
+    dscr: float | None = None
+    current_ratio: float | None = None
+    runway_months: float | None = None
+    is_solvent: bool
+    is_debt_free: bool
+    anomaly_flags: list[str] = Field(default_factory=list)
+
+
+class UnderwriteResponseSchema(BaseModel):
+    """Respuesta consolidada del estado de la solicitud crediticia."""
+
+    application_id: str
+    associated_id: str
+    business_name: str
+    current_step: str
+    is_completed: bool
+    metrics: MetricsSummarySchema | None = None
+    ai_verdict: UnderwritingVerdict | None = None
+    human_approved: bool | None = None
+    human_notes: str | None = None
+    errors: list[str] = Field(default_factory=list)
+
+
+class HumanReviewRequestSchema(BaseModel):
+    """Payload enviado por el oficial de crédito para aprobar o rechazar la solicitud."""
+
+    approved: bool = Field(
+        description="Resolución del oficial de crédito (True: Aprueba, False: Rechaza)"
+    )
+    notes: str = Field(
+        min_length=3, description="Justificación o condiciones impuestas por el comité"
+    )

@@ -2,6 +2,8 @@
 
 from fastapi import FastAPI
 
+from src.api.routes.underwriting import router as underwriting_router
+
 app = FastAPI(
     title="Confiamos Risk Engine (CRE)",
     description=(
@@ -10,6 +12,8 @@ app = FastAPI(
     ),
     version="1.0.0",
 )
+
+app.include_router(underwriting_router, prefix="/api/v1")
 
 
 @app.get("/health", tags=["Health"])

@@ -50,3 +50,39 @@ Todo spec técnico debe contener:
   * Todo PR debe contener un resumen ejecutivo de cambios, archivos modificados y evidencia de tests aprobados.
   * Todo PR debe aprobar los checks automáticos de CI (Ruff y Pytest) en GitHub Actions antes de ser mergeado.
 
+---
+
+## 6. Estándar Estricto de Diseño de APIs REST (FreeCodeCamp Best Practices)
+Todo endpoint expuesto en la plataforma debe cumplir sin excepción con los 10 principios REST:
+1. **Recursos en Plural y Cero Verbos en URIs**:
+   * Usar sustantivos en plural: `/api/v1/underwritings`, `/api/v1/credit-applications`.
+   * Prohibido incluir verbos en la ruta (ej: `/api/v1/getReport` o `/api/v1/createCredit` es ILEGAL). La acción la determina el método HTTP.
+2. **Semántica de Métodos HTTP**:
+   * `GET`: Solo lectura, seguro e idempotente.
+   * `POST`: Creación de recursos o acciones no idempotentes. Retorna `201 Created`.
+   * `PUT`: Reemplazo total del recurso. Idempotente.
+   * `PATCH`: Modificación parcial de campos.
+   * `DELETE`: Eliminación lógica o física. Retorna `204 No Content` o `200 OK`.
+3. **Códigos de Estado HTTP Estándar**:
+   * Éxito: `200 OK`, `201 Created`, `204 No Content`.
+   * Errores de Cliente: `400 Bad Request`, `401 Unauthorized`, `403 Forbidden`, `404 Not Found`, `409 Conflict`, `422 Unprocessable Entity` (validación Pydantic).
+   * Errores de Servidor: `500 Internal Server Error`.
+4. **Formato JSON Estricto y Errores Uniformes**:
+   * Todo cuerpo de petición y respuesta debe ser `application/json`.
+   * Los errores deben retornar una estructura estandarizada con código y mensaje claro.
+5. **Versionado Obligatorio en la URI**:
+   * Todo endpoint debe estar prefijado con la versión mayor: `/api/v1/...`.
+6. **Agrupación y Anidación Lógica de Recursos**:
+   * Recursos subordinados: `/api/v1/underwritings/{application_id}/reviews`.
+7. **Paginación, Ordenamiento y Filtrado**:
+   * Toda consulta de colecciones debe admitir parámetros: `?page=1&limit=20&sort=-created_at&status=APROBADO`.
+8. **Seguridad y Documentación OpenAPI**:
+   * Cero exposición de trazas de error (`stack traces`) en respuestas de producción.
+   * Documentación OpenAPI / Swagger tipada al 100% con descripciones ricas.
+
+---
+
+## 7. Gobernanza de Skills de Agente (skills.sh)
+* Las skills externas de soporte al desarrollo se gestionan a nivel de proyecto en `.agents/skills/`.
+* Solo se instalan skills estrictamente necesarias (ej: `fastapi-patterns`) para evitar inflar el repositorio.
+

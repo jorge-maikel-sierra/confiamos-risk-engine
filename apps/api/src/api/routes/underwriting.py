@@ -29,6 +29,10 @@ from src.infrastructure.gemini_adapter import (
     MockGeminiAuditor,
     RiskAuditorProtocol,
 )
+from src.infrastructure.observability import (
+    IObservabilityTracker,
+    get_observability_tracker,
+)
 
 router = APIRouter(tags=["Credit Underwriting"])
 
@@ -37,15 +41,17 @@ _checkpointer = MemorySaver()
 _fallback_repo = InMemoryUnderwritingRepository()
 
 
-def get_risk_auditor() -> RiskAuditorProtocol:
+def get_risk_auditor(
+    tracker: Annotated[IObservabilityTracker, Depends(get_observability_tracker)],
+) -> RiskAuditorProtocol:
     """Retorna el auditor real si existe GEMINI_API_KEY configurada y no estamos en test."""
     if os.getenv("TESTING") == "true":
-        return MockGeminiAuditor()
+        return MockGeminiAuditor(tracker=tracker)
 
     api_key = os.getenv("GEMINI_API_KEY")
     if api_key and api_key != "your_gemini_api_key_here":
-        return GeminiRiskAuditor(api_key=api_key)
-    return MockGeminiAuditor()
+        return GeminiRiskAuditor(api_key=api_key, tracker=tracker)
+    return MockGeminiAuditor(tracker=tracker)
 
 
 def get_workflow_graph(
@@ -140,11 +146,21 @@ async def start_underwriting(
     payload: UnderwriteRequestSchema,
     graph: Annotated[Any, Depends(get_workflow_graph)],
     repo: Annotated[IUnderwritingRepository, Depends(get_underwriting_repository)],
+    tracker: Annotated[IObservabilityTracker, Depends(get_observability_tracker)],
 ) -> UnderwriteResponseSchema:
     application_id = f"APP-{uuid.uuid4().hex[:8].upper()}"
     config = {"configurable": {"thread_id": application_id}}
 
-    # 1. Registrar solicitud inicial en repositorio
+    # 1. Iniciar traza de observabilidad en Langfuse
+    tracker.trace_start(
+        application_id=application_id,
+        associated_id=payload.associated_id,
+        business_name=payload.business_name,
+        requested_amount_usd=payload.requested_amount_usd,
+        term_months=payload.term_months,
+    )
+
+    # 2. Registrar solicitud inicial en repositorio
     await repo.create_application(
         application_id=application_id,
         associated_id=payload.associated_id,
@@ -255,6 +271,7 @@ async def submit_human_review(
     payload: HumanReviewRequestSchema,
     graph: Annotated[Any, Depends(get_workflow_graph)],
     repo: Annotated[IUnderwritingRepository, Depends(get_underwriting_repository)],
+    tracker: Annotated[IObservabilityTracker, Depends(get_observability_tracker)],
 ) -> UnderwriteResponseSchema:
     record = await repo.get_by_id(application_id)
     if not record:
@@ -291,6 +308,13 @@ async def submit_human_review(
         approved=payload.approved,
         notes=payload.notes,
         current_step=final_snapshot.values.get("current_step", "COMPLETED"),
+    )
+
+    # Registrar score de aprobación humana en Langfuse
+    tracker.record_human_score(
+        application_id=application_id,
+        approved=payload.approved,
+        notes=payload.notes,
     )
 
     return _format_underwrite_response(application_id, final_snapshot.values)

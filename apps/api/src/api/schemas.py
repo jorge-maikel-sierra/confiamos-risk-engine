@@ -65,3 +65,12 @@ class HumanReviewRequestSchema(BaseModel):
     notes: str = Field(
         min_length=3, description="Justificación o condiciones impuestas por el comité"
     )
+
+
+class PaginatedUnderwritingListSchema(BaseModel):
+    """Respuesta paginada para la bandeja de solicitudes de crédito de oficiales."""
+
+    items: list[UnderwriteResponseSchema]
+    total: int
+    limit: int
+    offset: int

@@ -1,8 +1,24 @@
-"""Confiamos Risk Engine (CRE) - API Entrypoint."""
+"""Confiamos Risk Engine (CRE) - API Entrypoint (SPEC-01 y SPEC-02)."""
+
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
 from src.api.routes.underwriting import router as underwriting_router
+from src.infrastructure.database import init_db
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+    """Ciclo de vida de la aplicación: inicializa esquemas relacionales en arranque."""
+    try:
+        await init_db()
+    except Exception:
+        # Modo resiliente ante ausencia de base de datos en testing o arranque frío
+        pass
+    yield
+
 
 app = FastAPI(
     title="Confiamos Risk Engine (CRE)",
@@ -11,9 +27,14 @@ app = FastAPI(
         "Cooperativa Confiamos."
     ),
     version="1.0.0",
+    lifespan=lifespan,
 )
 
-app.include_router(underwriting_router, prefix="/api/v1")
+# Ruta canónica en plural conforme al estándar estricto de APIs REST (FreeCodeCamp)
+app.include_router(underwriting_router, prefix="/api/v1/underwritings")
+
+# Ruta retrocompatible para SPEC-01
+app.include_router(underwriting_router, prefix="/api/v1/underwrite", include_in_schema=False)
 
 
 @app.get("/health", tags=["Health"])

@@ -21,14 +21,29 @@ export interface UnderwritingVerdict {
   due_diligence_questions: string[];
 }
 
+export interface HistoricalPrecedent {
+  loan_id: string;
+  business_name: string;
+  sector: string;
+  requested_amount_usd: number;
+  dscr: number;
+  current_ratio: number;
+  anomaly_flags: string[];
+  outcome: "CARTERA_SANA" | "DEFAULT_MORA" | "REESTRUCTURADO";
+  outcome_summary: string;
+  similarity_score: number;
+}
+
 export interface UnderwritingRecord {
   application_id: string;
   associated_id: string;
   business_name: string;
+  sector?: string;
   current_step: string;
   is_completed: boolean;
   metrics: MetricsSummary | null;
   ai_verdict: UnderwritingVerdict | null;
+  historical_precedents?: HistoricalPrecedent[];
   human_approved: boolean | null;
   human_notes: string | null;
   errors: string[];
@@ -46,6 +61,7 @@ export interface PaginatedUnderwritingList {
 export interface CreateUnderwritingPayload {
   associated_id: string;
   business_name: string;
+  sector?: string;
   requested_amount_usd: number;
   term_months: number;
   financial_data: {

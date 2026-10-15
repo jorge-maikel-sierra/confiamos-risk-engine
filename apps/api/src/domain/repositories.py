@@ -1,4 +1,4 @@
-"""Contratos e implementaciones del Patrón Repositorio para la evaluación crediticia (SPEC-02)."""
+"""Contratos e implementaciones del Patrón Repositorio (SPEC-02 y SPEC-05)."""
 
 from abc import ABC, abstractmethod
 from typing import Any
@@ -47,6 +47,7 @@ class IUnderwritingRepository(ABC):
         current_step: str,
         metrics: dict[str, Any] | None = None,
         ai_verdict: dict[str, Any] | None = None,
+        historical_precedents: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
         """Actualiza el estado intermedio y resultados de cómputo del StateGraph."""
         ...
@@ -89,6 +90,7 @@ class InMemoryUnderwritingRepository(IUnderwritingRepository):
             "raw_financials": raw_financials,
             "metrics": None,
             "ai_verdict": None,
+            "historical_precedents": [],
             "human_approved": None,
             "human_notes": None,
         }
@@ -115,6 +117,7 @@ class InMemoryUnderwritingRepository(IUnderwritingRepository):
         current_step: str,
         metrics: dict[str, Any] | None = None,
         ai_verdict: dict[str, Any] | None = None,
+        historical_precedents: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
         record = self._storage.get(application_id)
         if not record:
@@ -124,6 +127,8 @@ class InMemoryUnderwritingRepository(IUnderwritingRepository):
             record["metrics"] = metrics
         if ai_verdict is not None:
             record["ai_verdict"] = ai_verdict
+        if historical_precedents is not None:
+            record["historical_precedents"] = historical_precedents
         return record
 
     async def submit_human_review(
@@ -200,6 +205,7 @@ class PostgresUnderwritingRepository(IUnderwritingRepository):
         current_step: str,
         metrics: dict[str, Any] | None = None,
         ai_verdict: dict[str, Any] | None = None,
+        historical_precedents: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
         stmt = select(CreditApplicationModel).where(CreditApplicationModel.id == application_id)
         result = await self.session.execute(stmt)
@@ -212,6 +218,8 @@ class PostgresUnderwritingRepository(IUnderwritingRepository):
             model.metrics = metrics
         if ai_verdict is not None:
             model.ai_verdict = ai_verdict
+        if historical_precedents is not None:
+            model.historical_precedents = historical_precedents
 
         await self.session.flush()
         await self.session.refresh(model)

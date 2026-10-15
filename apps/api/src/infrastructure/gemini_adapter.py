@@ -1,7 +1,9 @@
-"""Adaptador de infraestructura para inferencia de riesgo con Google Gemini (SPEC-01 y SPEC-03).
+"""Adaptador de infraestructura para inferencia de riesgo con Google Gemini.
 
+SPEC-01, SPEC-03 y SPEC-05.
 Implementa la separación de capas: protocolo desacoplado + cliente real + mock para testing,
-instrumentado con trazabilidad y métricas de observabilidad vía IObservabilityTracker.
+instrumentado con trazabilidad y métricas de observabilidad vía IObservabilityTracker y RAG con
+pgvector.
 """
 
 import time
@@ -9,6 +11,7 @@ from typing import Protocol
 
 from src.domain.metrics import FinancialHealthMetrics
 from src.domain.state import CreditRecommendation, UnderwritingVerdict
+from src.domain.vector_search import HistoricalLoanPrecedent, LoanOutcome
 from src.infrastructure.observability import IObservabilityTracker
 
 
@@ -23,6 +26,7 @@ class RiskAuditorProtocol(Protocol):
         metrics: FinancialHealthMetrics,
         application_id: str | None = None,
         associated_id: str | None = None,
+        precedents: list[HistoricalLoanPrecedent] | None = None,
     ) -> UnderwritingVerdict:
         """Emite el dictamen estructurado de riesgo para una solicitud."""
         ...
@@ -48,6 +52,7 @@ class MockGeminiAuditor:
         metrics: FinancialHealthMetrics,
         application_id: str | None = None,
         associated_id: str | None = None,
+        precedents: list[HistoricalLoanPrecedent] | None = None,
     ) -> UnderwritingVerdict:
         self.call_count += 1
         start_time = time.perf_counter()
@@ -61,8 +66,16 @@ class MockGeminiAuditor:
                 flag in metrics.anomaly_flags
                 for flag in ["FLAG_NEGATIVE_OPERATING_CASH_FLOW", "FLAG_OVERDRAFT_DETECTED"]
             )
+            has_default_precedent = False
+            default_summary = ""
+            if precedents:
+                for p in precedents:
+                    if p.outcome == LoanOutcome.DEFAULT_MORA and p.similarity_score >= 0.85:
+                        has_default_precedent = True
+                        default_summary = p.outcome_summary
+                        break
 
-            if is_solvent and not has_critical_flags:
+            if is_solvent and not has_critical_flags and not has_default_precedent:
                 recommendation = CreditRecommendation.APROBADO
                 confidence = 0.92
                 summary = (
@@ -74,14 +87,22 @@ class MockGeminiAuditor:
                 questions: list[str] = [
                     "¿Se mantendrán los contratos clave durante el próximo ejercicio?"
                 ]
-            elif is_solvent and has_critical_flags:
+            elif is_solvent and (has_critical_flags or has_default_precedent):
                 recommendation = CreditRecommendation.APROBADO_CONDICIONADO
                 confidence = 0.78
+                risk_note = (
+                    f" Alerta RAG: precedentes históricos con default ({default_summary})."
+                    if has_default_precedent
+                    else ""
+                )
                 summary = (
                     f"La empresa {business_name} cumple con el ratio de cobertura pero presenta "
-                    "alertas operativas que requieren garantías adicionales."
+                    f"alertas operativas o precedentes que requieren garantías adicionales."
+                    f"{risk_note}"
                 )
                 risks = metrics.anomaly_flags.copy()
+                if has_default_precedent:
+                    risks.append("ALERTA_RAG_PRECEDENTE_HISTORICO_DEFAULT")
                 questions = [
                     "Explicar los días con saldo negativo registrados en los extractos.",
                     "Presentar aval o garantía líquida equivalente al 20% del crédito.",
@@ -96,11 +117,19 @@ class MockGeminiAuditor:
                 risks = ["DSCR deficitario"] + metrics.anomaly_flags
                 questions = ["¿Existen planes de reestructuración de pasivos existentes?"]
 
+            strengths = ["Actividad comercial comprobada"]
+            if precedents:
+                sana_count = sum(1 for p in precedents if p.outcome == LoanOutcome.CARTERA_SANA)
+                if sana_count > 0:
+                    strengths.append(
+                        f"Sector con {sana_count} precedentes favorables de cartera sana"
+                    )
+
             verdict = UnderwritingVerdict(
                 recommendation=recommendation,
                 confidence_score=confidence,
                 executive_summary=summary,
-                key_strengths=["Actividad comercial comprobada"],
+                key_strengths=strengths,
                 identified_risks=risks,
                 due_diligence_questions=questions,
             )
@@ -111,7 +140,10 @@ class MockGeminiAuditor:
             self.tracker.record_generation(
                 application_id=application_id,
                 model_name="mock-gemini-auditor",
-                prompt=f"Audit {business_name} amount: {requested_amount_usd}",
+                prompt=(
+                    f"Audit {business_name} amount: {requested_amount_usd} "
+                    f"precedents: {len(precedents or [])}"
+                ),
                 output=verdict.model_dump(),
                 usage={"prompt_tokens": 120, "completion_tokens": 85, "total_tokens": 205},
                 latency_ms=latency_ms,
@@ -121,7 +153,7 @@ class MockGeminiAuditor:
 
 
 class GeminiRiskAuditor:
-    """Implementación de producción que invoca la API oficial de Google Gemini."""
+    """Implementación de producción que invoca la API oficial de Google Gemini con RAG."""
 
     def __init__(
         self,
@@ -144,6 +176,7 @@ class GeminiRiskAuditor:
         metrics: FinancialHealthMetrics,
         application_id: str | None = None,
         associated_id: str | None = None,
+        precedents: list[HistoricalLoanPrecedent] | None = None,
     ) -> UnderwritingVerdict:
         from google.genai import types
 
@@ -152,9 +185,22 @@ class GeminiRiskAuditor:
         dscr_val = metrics.dscr_result.dscr
         is_free = metrics.dscr_result.is_debt_free
 
+        precedents_block = ""
+        if precedents:
+            lines = ["PRECEDENTES HISTÓRICOS SIMILARES DE LA CARTERA DE CONFIAMOS:"]
+            for p in precedents:
+                lines.append(
+                    f"- Caso: {p.business_name} | Sector: {p.sector} | Monto: "
+                    f"${p.requested_amount_usd:,.2f} USD | DSCR: {p.dscr:.2f} | Liquidez: "
+                    f"{p.current_ratio:.2f} | Resultado: {p.outcome.value} "
+                    f"(Similitud: {p.similarity_score * 100:.1f}%)\n"
+                    f"  Lección / Resumen: {p.outcome_summary}"
+                )
+            precedents_block = "\n".join(lines) + "\n"
+
         prompt = f"""
 Eres el Oficial Senior de Riesgo de la Cooperativa Confiamos.
-Analiza la siguiente solicitud de crédito comercial evaluando los indicadores determinísticos:
+Analiza la solicitud de crédito con los indicadores determinísticos y precedentes históricos:
 
 EMPRESA: {business_name}
 MONTO SOLICITADO: ${requested_amount_usd:,.2f} USD
@@ -166,10 +212,13 @@ INDICADORES DETERMINÍSTICOS CALCULADOS (MATEMÁTICA PURA):
 - Runway estimado: {metrics.runway_months} meses
 - Banderas de anomalías detectadas: {flags_str}
 
+{precedents_block}
 REGLAS DE DECISIÓN:
 1. Si el DSCR es menor a 1.25, no aprobar de forma directa.
 2. Si hay flujo operativo negativo o sobregiros, emitir APROBADO_CONDICIONADO o RECHAZADO.
-3. Genera preguntas de Due Diligence concretas y específicas para el solicitante.
+3. Evalúa los precedentes históricos similares de la cartera. Si existen casos análogos en
+   DEFAULT_MORA o REESTRUCTURADO, contrasta los factores de riesgo e inclúyelos en el dictamen.
+4. Genera preguntas de Due Diligence concretas y específicas para el solicitante.
 """
 
         response = self.client.models.generate_content(

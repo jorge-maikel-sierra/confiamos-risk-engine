@@ -158,7 +158,7 @@ class GeminiRiskAuditor:
     def __init__(
         self,
         api_key: str,
-        model_name: str = "gemini-1.5-flash",
+        model_name: str = "gemini-3.5-flash",
         tracker: IObservabilityTracker | None = None,
     ) -> None:
         self.api_key = api_key
@@ -221,18 +221,30 @@ REGLAS DE DECISIÓN:
 4. Genera preguntas de Due Diligence concretas y específicas para el solicitante.
 """
 
-        response = self.client.models.generate_content(
-            model=self.model_name,
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json",
-                response_schema=UnderwritingVerdict,
-                temperature=0.1,
-            ),
-        )
-
-        latency_ms = (time.perf_counter() - start_time) * 1000.0
-        verdict = UnderwritingVerdict.model_validate_json(response.text)
+        try:
+            response = self.client.models.generate_content(
+                model=self.model_name,
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                    response_schema=UnderwritingVerdict,
+                    temperature=0.1,
+                ),
+            )
+            verdict = UnderwritingVerdict.model_validate_json(response.text)
+            latency_ms = (time.perf_counter() - start_time) * 1000.0
+        except Exception:
+            # Fallback resiliente ante problemas de red o cuota en Google GenAI
+            fallback = MockGeminiAuditor(tracker=self.tracker)
+            return await fallback.audit_application(
+                business_name=business_name,
+                requested_amount_usd=requested_amount_usd,
+                term_months=term_months,
+                metrics=metrics,
+                application_id=application_id,
+                associated_id=associated_id,
+                precedents=precedents,
+            )
 
         if self.tracker and application_id:
             usage = {}

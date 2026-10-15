@@ -17,5 +17,17 @@ services:
       timeout: 5s
       retries: 5
 
+  pgweb:
+    image: sosedoff/pgweb
+    container_name: confiamos-pgweb
+    restart: always
+    environment:
+      PGWEB_DATABASE_URL: postgres://confiamos_user:confiamos_password@postgres:5432/confiamos_risk_db?sslmode=disable
+    ports:
+      - "8081:8081"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
 volumes:
   postgres_data:

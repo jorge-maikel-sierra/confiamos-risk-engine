@@ -187,7 +187,12 @@ class LangfuseTracker:
     ) -> None:
         self.public_key = public_key or os.getenv("LANGFUSE_PUBLIC_KEY")
         self.secret_key = secret_key or os.getenv("LANGFUSE_SECRET_KEY")
-        self.host = host or os.getenv("LANGFUSE_HOST", "https://cloud.langfuse.com")
+        self.host = (
+            host
+            or os.getenv("LANGFUSE_HOST")
+            or os.getenv("LANGFUSE_BASE_URL")
+            or "https://cloud.langfuse.com"
+        )
         self._client = None
         self._active_spans: dict[str, Any] = {}
 

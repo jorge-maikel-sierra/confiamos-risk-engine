@@ -37,3 +37,16 @@ Todo spec técnico debe contener:
 ## 4. Gobernanza de Modelos e Inferencia
 * **Esquemas Estrictos**: Toda llamada a Gemini debe usar Structured Outputs gobernados por modelos de **Pydantic**.
 * **Observabilidad Obligatoria**: Toda inferencia e iteración del StateGraph debe estar instrumentada con **Langfuse** para medir latencia, costo de tokens y trazar inputs/outputs.
+
+---
+
+## 5. Flujo Obligatorio de Ramas y Pull Requests (PR-First)
+* **Prohibido el push directo a `main`**: Toda nueva funcionalidad o corrección debe desarrollarse en su propia rama.
+* **Nomenclatura de Ramas**:
+  * Features: `feat/issue-<numero>-<descripcion-corta>` (ej: `feat/issue-4-underwrite-endpoint`).
+  * Fixes: `fix/issue-<numero>-<descripcion-corta>`.
+* **Contrato de Pull Request**:
+  * Todo PR debe vincular explícitamente el Issue que resuelve con la palabra clave `Closes #<numero>`.
+  * Todo PR debe contener un resumen ejecutivo de cambios, archivos modificados y evidencia de tests aprobados.
+  * Todo PR debe aprobar los checks automáticos de CI (Ruff y Pytest) en GitHub Actions antes de ser mergeado.
+

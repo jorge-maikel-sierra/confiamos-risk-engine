@@ -195,10 +195,12 @@ async def test_end_to_end_observability_via_api() -> None:
         assert mock_tracker.traces[0]["id"] == app_id
         assert mock_tracker.traces[0]["user_id"] == "CONF-TRACE-1"
 
-        # Validar span hijo para métricas determinísticas registrado
-        assert len(mock_tracker.spans) == 1
-        assert mock_tracker.spans[0]["name"] == "compute_financial_metrics"
-        assert mock_tracker.spans[0]["trace_id"] == app_id
+        # Validar spans hijos registrados (retriever vectorial y métricas determinísticas)
+        span_names = [s["name"] for s in mock_tracker.spans]
+        assert "compute_financial_metrics" in span_names
+        assert "historical_precedents_search" in span_names
+        for s in mock_tracker.spans:
+            assert s["trace_id"] == app_id
 
         # Validar generación con LLM registrada
         assert len(mock_tracker.generations) == 1

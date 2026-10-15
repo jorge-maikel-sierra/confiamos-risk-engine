@@ -14,6 +14,7 @@ import {
   TrendingUp,
   AlertTriangle,
   RefreshCw,
+  History,
 } from "lucide-react";
 import { fetchUnderwritingById } from "@/lib/api";
 import { UnderwritingRecord } from "@/types/underwriting";
@@ -176,12 +177,84 @@ export default function UnderwritingDetailPage() {
         <AnomalyAlertList flags={metrics?.anomaly_flags || []} />
       </section>
 
+      {/* Precedentes Históricos de Cartera (pgvector RAG) */}
+      {record.historical_precedents && record.historical_precedents.length > 0 && (
+        <section className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-base font-bold text-slate-900 tracking-tight flex items-center gap-2">
+              <History className="w-5 h-5 text-indigo-600" />
+              <span>3. Búsqueda Semántica de Precedentes en Cartera (pgvector RAG)</span>
+            </h2>
+            <span className="text-xs font-semibold text-slate-500 bg-slate-100 px-3 py-1 rounded-full border border-slate-200">
+              k={record.historical_precedents.length} Casos Similares
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {record.historical_precedents.map((precedent) => {
+              const isSana = precedent.outcome === "CARTERA_SANA";
+              const isDefault = precedent.outcome === "DEFAULT_MORA";
+
+              const badgeColor = isSana
+                ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                : isDefault
+                  ? "bg-rose-50 text-rose-700 border-rose-200"
+                  : "bg-amber-50 text-amber-700 border-amber-200";
+
+              return (
+                <div
+                  key={precedent.loan_id}
+                  className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-3 flex flex-col justify-between"
+                >
+                  <div className="space-y-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <span className="text-[10px] font-mono text-slate-400 font-bold">
+                          {precedent.loan_id}
+                        </span>
+                        <h4 className="text-xs font-bold text-slate-900 leading-snug">
+                          {precedent.business_name}
+                        </h4>
+                        <span className="text-[11px] text-slate-500 font-medium">
+                          {precedent.sector}
+                        </span>
+                      </div>
+                      <span
+                        className={`text-[10px] font-bold px-2 py-0.5 rounded-md border flex-shrink-0 ${badgeColor}`}
+                      >
+                        {precedent.outcome}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between text-xs pt-1 border-t border-slate-100 text-slate-600">
+                      <span>Monto: {formatCurrency(precedent.requested_amount_usd)}</span>
+                      <span>DSCR: {formatRatio(precedent.dscr)}</span>
+                    </div>
+
+                    <p className="text-[11px] text-slate-600 leading-relaxed italic bg-slate-50 p-2.5 rounded-lg border border-slate-100">
+                      &ldquo;{precedent.outcome_summary}&rdquo;
+                    </p>
+                  </div>
+
+                  <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px]">
+                    <span className="text-slate-400 font-semibold">Similitud Coseno:</span>
+                    <span className="font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100">
+                      {(precedent.similarity_score * 100).toFixed(1)}%
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
       {/* Dictamen Cualitativo de Gemini 1.5 Flash */}
       <section className="space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="text-base font-bold text-slate-900 tracking-tight flex items-center gap-2">
             <Bot className="w-5 h-5 text-indigo-600" />
-            <span>3. Auditoría Cualitativa Inteligente (Google Gemini)</span>
+            <span>4. Auditoría Cualitativa Inteligente (Google Gemini)</span>
           </h2>
           {verdict && (
             <span className="text-xs font-bold text-indigo-700 bg-indigo-50 px-3 py-1 rounded-full border border-indigo-200">

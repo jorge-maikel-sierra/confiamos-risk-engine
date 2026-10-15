@@ -1,4 +1,4 @@
-"""Estado y modelos de datos para el StateGraph crediticio (SPEC-01)."""
+"""Estado y modelos de datos para el StateGraph crediticio (SPEC-01 y SPEC-05)."""
 
 from enum import StrEnum
 from typing import Any, TypedDict
@@ -6,6 +6,7 @@ from typing import Any, TypedDict
 from pydantic import BaseModel, Field
 
 from src.domain.metrics import FinancialHealthMetrics, FinancialInput
+from src.domain.vector_search import HistoricalLoanPrecedent
 
 
 class CreditRecommendation(StrEnum):
@@ -44,6 +45,7 @@ class CreditUnderwritingState(TypedDict, total=False):
     application_id: str
     associated_id: str
     business_name: str
+    sector: str
     requested_amount_usd: float
     term_months: int
     raw_financials: dict[str, Any]
@@ -53,6 +55,9 @@ class CreditUnderwritingState(TypedDict, total=False):
 
     # Resultados determinísticos
     metrics: FinancialHealthMetrics | None
+
+    # Precedentes históricos de crédito (RAG pgvector - SPEC-05)
+    historical_precedents: list[HistoricalLoanPrecedent] | None
 
     # Razonamiento cualitativo de IA
     ai_verdict: UnderwritingVerdict | None

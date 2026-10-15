@@ -1,4 +1,4 @@
-"""Esquemas Pydantic para los endpoints REST de evaluación crediticia (SPEC-01)."""
+"""Esquemas Pydantic para los endpoints REST de evaluación crediticia (SPEC-01 y SPEC-05)."""
 
 from pydantic import BaseModel, Field
 
@@ -25,6 +25,9 @@ class UnderwriteRequestSchema(BaseModel):
 
     associated_id: str = Field(description="Identificador del asociado de Cooperativa Confiamos")
     business_name: str = Field(description="Razón social de la empresa o PyME solicitante")
+    sector: str = Field(
+        default="Comercio y Servicios", description="Sector económico de la empresa solicitante"
+    )
     requested_amount_usd: float = Field(gt=0.0, description="Monto solicitado en dólares")
     term_months: int = Field(gt=0, le=120, description="Plazo solicitado en meses")
     financial_data: RawFinancialsSchema = Field(description="Balances y datos contables")
@@ -41,16 +44,33 @@ class MetricsSummarySchema(BaseModel):
     anomaly_flags: list[str] = Field(default_factory=list)
 
 
+class HistoricalPrecedentSchema(BaseModel):
+    """Precedente histórico de crédito recuperado por similitud semántica (SPEC-05)."""
+
+    loan_id: str
+    business_name: str
+    sector: str
+    requested_amount_usd: float
+    dscr: float
+    current_ratio: float
+    anomaly_flags: list[str] = Field(default_factory=list)
+    outcome: str
+    outcome_summary: str
+    similarity_score: float
+
+
 class UnderwriteResponseSchema(BaseModel):
     """Respuesta consolidada del estado de la solicitud crediticia."""
 
     application_id: str
     associated_id: str
     business_name: str
+    sector: str = "Comercio y Servicios"
     current_step: str
     is_completed: bool
     metrics: MetricsSummarySchema | None = None
     ai_verdict: UnderwritingVerdict | None = None
+    historical_precedents: list[HistoricalPrecedentSchema] = Field(default_factory=list)
     human_approved: bool | None = None
     human_notes: str | None = None
     errors: list[str] = Field(default_factory=list)

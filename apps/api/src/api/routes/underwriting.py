@@ -1,4 +1,4 @@
-"""Router de FastAPI para evaluación y suscripción crediticia (SPEC-01 y SPEC-02)."""
+"""Router de FastAPI para evaluación y suscripción crediticia (SPEC-01, SPEC-02 y SPEC-05)."""
 
 import os
 import uuid
@@ -10,6 +10,7 @@ from langgraph.checkpoint.memory import MemorySaver
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.schemas import (
+    HistoricalPrecedentSchema,
     HumanReviewRequestSchema,
     MetricsSummarySchema,
     PaginatedUnderwritingListSchema,
@@ -22,8 +23,14 @@ from src.domain.repositories import (
     PostgresUnderwritingRepository,
 )
 from src.domain.state import CreditUnderwritingState
+from src.domain.vector_search import (
+    IEmbeddingGenerator,
+    IVectorSearchRepository,
+    MockVectorSearchRepository,
+)
 from src.domain.workflow import create_underwriting_graph
 from src.infrastructure.database import get_db_session
+from src.infrastructure.embedding_adapter import get_embedding_generator
 from src.infrastructure.gemini_adapter import (
     GeminiRiskAuditor,
     MockGeminiAuditor,
@@ -33,12 +40,14 @@ from src.infrastructure.observability import (
     IObservabilityTracker,
     get_observability_tracker,
 )
+from src.infrastructure.vector_repository import PostgresVectorSearchRepository
 
 router = APIRouter(tags=["Credit Underwriting"])
 
 # Checkpointer persistente en memoria para la sesión de la API
 _checkpointer = MemorySaver()
 _fallback_repo = InMemoryUnderwritingRepository()
+_fallback_vector_repo = MockVectorSearchRepository()
 
 
 def get_risk_auditor(
@@ -54,11 +63,9 @@ def get_risk_auditor(
     return MockGeminiAuditor(tracker=tracker)
 
 
-def get_workflow_graph(
-    auditor: Annotated[RiskAuditorProtocol, Depends(get_risk_auditor)],
-):
-    """Retorna la instancia del grafo compilado con el checkpointer activo."""
-    return create_underwriting_graph(auditor=auditor, checkpointer=_checkpointer)
+def get_embedding_generator_dep() -> IEmbeddingGenerator:
+    """Inyector de dependencias para el generador de embeddings."""
+    return get_embedding_generator()
 
 
 async def get_optional_db_session() -> AsyncGenerator[AsyncSession | None, None]:
@@ -81,6 +88,32 @@ async def get_underwriting_repository(
     if session is not None and os.getenv("TESTING") != "true":
         return PostgresUnderwritingRepository(session)
     return _fallback_repo
+
+
+async def get_vector_search_repository(
+    session: Annotated[AsyncSession | None, Depends(get_optional_db_session)],
+    embedder: Annotated[IEmbeddingGenerator, Depends(get_embedding_generator_dep)],
+) -> IVectorSearchRepository:
+    """Inyector de dependencias para el repositorio de búsqueda vectorial."""
+    if session is not None and os.getenv("TESTING") != "true":
+        return PostgresVectorSearchRepository(session, embedder=embedder)
+    return _fallback_vector_repo
+
+
+def get_workflow_graph(
+    auditor: Annotated[RiskAuditorProtocol, Depends(get_risk_auditor)],
+    vector_repo: Annotated[IVectorSearchRepository, Depends(get_vector_search_repository)],
+    embedder: Annotated[IEmbeddingGenerator, Depends(get_embedding_generator_dep)],
+    tracker: Annotated[IObservabilityTracker, Depends(get_observability_tracker)],
+):
+    """Retorna la instancia del grafo compilado con checkpointer y RAG vectorial."""
+    return create_underwriting_graph(
+        auditor=auditor,
+        checkpointer=_checkpointer,
+        vector_repo=vector_repo,
+        embedder=embedder,
+        tracker=tracker,
+    )
 
 
 def _format_underwrite_response(app_id: str, values: dict[str, Any]) -> UnderwriteResponseSchema:
@@ -119,14 +152,26 @@ def _format_underwrite_response(app_id: str, values: dict[str, Any]) -> Underwri
                 anomaly_flags=metrics_obj.anomaly_flags,
             )
 
+    historical_precedents: list[HistoricalPrecedentSchema] = []
+    raw_precs = values.get("historical_precedents") or []
+    for item in raw_precs:
+        if isinstance(item, HistoricalPrecedentSchema):
+            historical_precedents.append(item)
+        elif hasattr(item, "to_dict"):
+            historical_precedents.append(HistoricalPrecedentSchema(**item.to_dict()))
+        elif isinstance(item, dict):
+            historical_precedents.append(HistoricalPrecedentSchema(**item))
+
     return UnderwriteResponseSchema(
         application_id=app_id,
         associated_id=values.get("associated_id", ""),
         business_name=values.get("business_name", ""),
+        sector=values.get("sector", "Comercio y Servicios"),
         current_step=values.get("current_step", "INITIALIZED"),
         is_completed=values.get("is_completed", False),
         metrics=metrics_summary,
         ai_verdict=values.get("ai_verdict"),
+        historical_precedents=historical_precedents,
         human_approved=values.get("human_approved"),
         human_notes=values.get("human_notes"),
         errors=values.get("errors", []),
@@ -174,16 +219,17 @@ async def start_underwriting(
         "application_id": application_id,
         "associated_id": payload.associated_id,
         "business_name": payload.business_name,
+        "sector": payload.sector,
         "requested_amount_usd": payload.requested_amount_usd,
         "term_months": payload.term_months,
         "raw_financials": payload.financial_data.model_dump(),
     }
 
-    # 2. Ejecutar StateGraph hasta la interrupción
+    # 3. Ejecutar StateGraph hasta la interrupción (incluye cálculo, pgvector y auditoría)
     await graph.ainvoke(initial_state, config=config)
     snapshot = await graph.aget_state(config)
 
-    # 3. Serializar y actualizar snapshot en la base de datos
+    # 4. Serializar y actualizar snapshot en la base de datos
     metrics_data = None
     if snapshot.values.get("metrics"):
         m = snapshot.values["metrics"]
@@ -201,14 +247,20 @@ async def start_underwriting(
         v = snapshot.values["ai_verdict"]
         verdict_data = v.model_dump() if hasattr(v, "model_dump") else v
 
+    precedents_data = None
+    if snapshot.values.get("historical_precedents"):
+        precs = snapshot.values["historical_precedents"]
+        precedents_data = [p.to_dict() if hasattr(p, "to_dict") else p for p in precs]
+
     await repo.update_snapshot(
         application_id=application_id,
         current_step=snapshot.values.get("current_step", "PENDING_HUMAN_REVIEW"),
         metrics=metrics_data,
         ai_verdict=verdict_data,
+        historical_precedents=precedents_data,
     )
 
-    # 4. Registrar span de cálculo determinístico y actualizar output del ciclo de vida
+    # 5. Registrar span de cálculo determinístico y actualizar output del ciclo de vida
     if metrics_data:
         tracker.record_span(
             application_id=application_id,

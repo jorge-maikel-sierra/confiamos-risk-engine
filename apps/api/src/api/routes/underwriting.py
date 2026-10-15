@@ -208,6 +208,25 @@ async def start_underwriting(
         ai_verdict=verdict_data,
     )
 
+    # 4. Registrar span de cálculo determinístico y actualizar output del ciclo de vida
+    if metrics_data:
+        tracker.record_span(
+            application_id=application_id,
+            name="compute_financial_metrics",
+            input=payload.financial_data.model_dump(),
+            output=metrics_data,
+            as_type="tool",
+        )
+
+    tracker.update_trace_output(
+        application_id=application_id,
+        output={
+            "current_step": snapshot.values.get("current_step", "PENDING_HUMAN_REVIEW"),
+            "ai_verdict": verdict_data,
+            "is_completed": snapshot.values.get("is_completed", False),
+        },
+    )
+
     return _format_underwrite_response(application_id, snapshot.values)
 
 
@@ -315,6 +334,17 @@ async def submit_human_review(
         application_id=application_id,
         approved=payload.approved,
         notes=payload.notes,
+    )
+
+    # Actualizar y finalizar output de la traza raíz
+    tracker.update_trace_output(
+        application_id=application_id,
+        output={
+            "current_step": final_snapshot.values.get("current_step", "COMPLETED"),
+            "human_approved": payload.approved,
+            "human_notes": payload.notes,
+            "is_completed": final_snapshot.values.get("is_completed", True),
+        },
     )
 
     return _format_underwrite_response(application_id, final_snapshot.values)

@@ -11,11 +11,14 @@ import {
   DollarSign,
   Calendar,
   AlertTriangle,
+  Bell,
+  X,
 } from "lucide-react";
 import { fetchUnderwritings } from "@/lib/api";
-import { UnderwritingRecord } from "@/types/underwriting";
+import { CreditUnderwritingEvent, UnderwritingRecord } from "@/types/underwriting";
 import { VerdictBadge } from "@/components/VerdictBadge";
 import { formatCurrency, formatRatio } from "@/lib/utils";
+import { useUnderwritingEvents } from "@/hooks/useUnderwritingEvents";
 
 export default function UnderwritingsInboxPage() {
   const [records, setRecords] = useState<UnderwritingRecord[]>([]);
@@ -23,6 +26,7 @@ export default function UnderwritingsInboxPage() {
   const [error, setError] = useState<string | null>(null);
   const [selectedFilter, setSelectedFilter] = useState<string>("ALL");
   const [searchQuery, setSearchQuery] = useState("");
+  const [activeAlert, setActiveAlert] = useState<CreditUnderwritingEvent | null>(null);
 
   const loadData = async (statusFilter?: string) => {
     setLoading(true);
@@ -46,6 +50,13 @@ export default function UnderwritingsInboxPage() {
     loadData(selectedFilter);
   }, [selectedFilter]);
 
+  const { isConnected } = useUnderwritingEvents({
+    onEvent: (event) => {
+      setActiveAlert(event);
+      loadData(selectedFilter);
+    },
+  });
+
   const filteredRecords = records.filter((r) => {
     const q = searchQuery.toLowerCase();
     return (
@@ -67,6 +78,25 @@ export default function UnderwritingsInboxPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
+          <div
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition ${
+              isConnected
+                ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                : "bg-slate-100 text-slate-500 border-slate-200"
+            }`}
+            title={
+              isConnected
+                ? "Conectado al bus de eventos SSE (AWS SNS / FastAPI)"
+                : "Desconectado de SSE"
+            }
+          >
+            <span
+              className={`w-2 h-2 rounded-full ${
+                isConnected ? "bg-emerald-500 animate-pulse" : "bg-slate-400"
+              }`}
+            />
+            {isConnected ? "En Vivo (SSE)" : "Desconectado"}
+          </div>
           <button
             onClick={() => loadData(selectedFilter)}
             disabled={loading}
@@ -118,6 +148,48 @@ export default function UnderwritingsInboxPage() {
           />
         </div>
       </div>
+
+      {activeAlert && (
+        <div
+          className={`p-4 rounded-xl border flex items-start justify-between gap-3 shadow-sm transition ${
+            activeAlert.severity === "CRITICAL"
+              ? "bg-rose-50 border-rose-200 text-rose-900"
+              : activeAlert.severity === "WARNING"
+              ? "bg-amber-50 border-amber-200 text-amber-900"
+              : "bg-blue-50 border-blue-200 text-blue-900"
+          }`}
+        >
+          <div className="flex items-start gap-3">
+            <Bell
+              className={`w-5 h-5 flex-shrink-0 mt-0.5 ${
+                activeAlert.severity === "CRITICAL"
+                  ? "text-rose-600 animate-bounce"
+                  : activeAlert.severity === "WARNING"
+                  ? "text-amber-600"
+                  : "text-blue-600"
+              }`}
+            />
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-white/80 border border-current/20">
+                  {activeAlert.event_type}
+                </span>
+                <span className="text-xs font-semibold">
+                  {activeAlert.business_name} ({activeAlert.application_id})
+                </span>
+              </div>
+              <p className="text-xs font-medium mt-1">{activeAlert.summary}</p>
+            </div>
+          </div>
+          <button
+            onClick={() => setActiveAlert(null)}
+            className="p-1 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-white/50"
+            title="Cerrar notificación"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
 
       {error && (
         <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 flex items-start gap-3">

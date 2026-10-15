@@ -80,3 +80,24 @@ export interface HumanReviewPayload {
   approved: boolean;
   notes: string;
 }
+
+export type EventSeverity = "INFO" | "WARNING" | "CRITICAL";
+
+export type CreditEventType =
+  | "APPLICATION_SUBMITTED"
+  | "METRICS_CALCULATED"
+  | "CRITICAL_RISK_DETECTED"
+  | "PENDING_HUMAN_REVIEW"
+  | "HUMAN_RESOLVED";
+
+export interface CreditUnderwritingEvent {
+  event_id: string;
+  event_type: CreditEventType;
+  severity: EventSeverity;
+  application_id: string;
+  associated_id: string;
+  business_name: string;
+  timestamp: string;
+  summary: string;
+  payload: Record<string, unknown>;
+}

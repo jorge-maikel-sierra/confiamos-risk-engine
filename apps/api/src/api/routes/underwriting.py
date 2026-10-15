@@ -1,11 +1,13 @@
-"""Router de FastAPI para evaluación y suscripción crediticia (SPEC-01, SPEC-02 y SPEC-05)."""
+"""Router de FastAPI para evaluación crediticia (SPEC-01 a SPEC-06)."""
 
+import asyncio
 import os
 import uuid
 from collections.abc import AsyncGenerator
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
+from fastapi.responses import StreamingResponse
 from langgraph.checkpoint.memory import MemorySaver
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -16,6 +18,13 @@ from src.api.schemas import (
     PaginatedUnderwritingListSchema,
     UnderwriteRequestSchema,
     UnderwriteResponseSchema,
+)
+from src.bot.telegram_notifier import TelegramNotifier
+from src.domain.events import (
+    CreditEventType,
+    CreditUnderwritingEvent,
+    EventSeverity,
+    IEventPublisher,
 )
 from src.domain.repositories import (
     InMemoryUnderwritingRepository,
@@ -29,6 +38,10 @@ from src.domain.vector_search import (
     MockVectorSearchRepository,
 )
 from src.domain.workflow import create_underwriting_graph
+from src.infrastructure.aws_sns_adapter import (
+    get_event_publisher,
+    global_event_broadcaster,
+)
 from src.infrastructure.database import get_db_session
 from src.infrastructure.embedding_adapter import get_embedding_generator
 from src.infrastructure.gemini_adapter import (
@@ -48,6 +61,7 @@ router = APIRouter(tags=["Credit Underwriting"])
 _checkpointer = MemorySaver()
 _fallback_repo = InMemoryUnderwritingRepository()
 _fallback_vector_repo = MockVectorSearchRepository()
+_telegram_notifier = TelegramNotifier()
 
 
 def get_risk_auditor(
@@ -66,6 +80,11 @@ def get_risk_auditor(
 def get_embedding_generator_dep() -> IEmbeddingGenerator:
     """Inyector de dependencias para el generador de embeddings."""
     return get_embedding_generator()
+
+
+def get_event_publisher_dep() -> IEventPublisher:
+    """Inyector de dependencias para el publicador de eventos en tiempo real (AWS SNS)."""
+    return get_event_publisher()
 
 
 async def get_optional_db_session() -> AsyncGenerator[AsyncSession | None, None]:
@@ -178,6 +197,37 @@ def _format_underwrite_response(app_id: str, values: dict[str, Any]) -> Underwri
     )
 
 
+@router.get(
+    "/events",
+    summary="Streaming de eventos crediticios en tiempo real (SSE)",
+    description="Transmite eventos del ciclo de vida crediticio vía Server-Sent Events (SPEC-06).",
+)
+async def stream_underwriting_events() -> StreamingResponse:
+    async def event_generator():
+        # Suscribir la cola antes del yield para que esté lista para recibir eventos
+        queue = global_event_broadcaster.create_subscription()
+        try:
+            # Heartbeat inicial para confirmar handshake y apertura del canal SSE
+            yield ": ping\n\n"
+            while True:
+                event = await queue.get()
+                yield event.to_sse_message()
+        except (asyncio.CancelledError, GeneratorExit):
+            pass
+        finally:
+            global_event_broadcaster.unsubscribe(queue)
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
 @router.post(
     "",
     response_model=UnderwriteResponseSchema,
@@ -189,9 +239,11 @@ def _format_underwrite_response(app_id: str, values: dict[str, Any]) -> Underwri
 )
 async def start_underwriting(
     payload: UnderwriteRequestSchema,
+    background_tasks: BackgroundTasks,
     graph: Annotated[Any, Depends(get_workflow_graph)],
     repo: Annotated[IUnderwritingRepository, Depends(get_underwriting_repository)],
     tracker: Annotated[IObservabilityTracker, Depends(get_observability_tracker)],
+    publisher: Annotated[IEventPublisher, Depends(get_event_publisher_dep)],
 ) -> UnderwriteResponseSchema:
     application_id = f"APP-{uuid.uuid4().hex[:8].upper()}"
     config = {"configurable": {"thread_id": application_id}}
@@ -279,6 +331,53 @@ async def start_underwriting(
         },
     )
 
+    # 6. Publicación reactiva de eventos y alertas (SPEC-06: AWS SNS + Telegram + SSE)
+    is_critical = False
+    if metrics_data:
+        has_critical_anomaly = any(
+            flag in metrics_data.get("anomaly_flags", [])
+            for flag in [
+                "FLAG_DEFICIT_DSCR",
+                "FLAG_NEGATIVE_OPERATING_CASH_FLOW",
+                "FLAG_OVERDRAFT_DETECTED",
+                "ALERTA_RAG_PRECEDENTE_HISTORICO_DEFAULT",
+            ]
+        )
+        if not metrics_data.get("is_solvent") or has_critical_anomaly:
+            is_critical = True
+
+    event_severity = EventSeverity.CRITICAL if is_critical else EventSeverity.WARNING
+    event_type = (
+        CreditEventType.CRITICAL_RISK_DETECTED
+        if is_critical
+        else CreditEventType.PENDING_HUMAN_REVIEW
+    )
+
+    verdict_summary = "Solicitud en espera de resolución de comité."
+    recommendation = "PENDIENTE"
+    if verdict_data:
+        verdict_summary = verdict_data.get("executive_summary", verdict_summary)
+        recommendation = verdict_data.get("recommendation", recommendation)
+
+    credit_event = CreditUnderwritingEvent(
+        event_type=event_type,
+        severity=event_severity,
+        application_id=application_id,
+        associated_id=payload.associated_id,
+        business_name=payload.business_name,
+        summary=verdict_summary,
+        payload={
+            "requested_amount_usd": payload.requested_amount_usd,
+            "term_months": payload.term_months,
+            "dscr": metrics_data.get("dscr") if metrics_data else None,
+            "anomaly_flags": metrics_data.get("anomaly_flags", []) if metrics_data else [],
+            "recommendation": recommendation,
+        },
+    )
+
+    await publisher.publish_event(credit_event)
+    background_tasks.add_task(_telegram_notifier.send_risk_alert, credit_event)
+
     return _format_underwrite_response(application_id, snapshot.values)
 
 
@@ -340,9 +439,11 @@ async def get_underwriting_status(
 async def submit_human_review(
     application_id: str,
     payload: HumanReviewRequestSchema,
+    background_tasks: BackgroundTasks,
     graph: Annotated[Any, Depends(get_workflow_graph)],
     repo: Annotated[IUnderwritingRepository, Depends(get_underwriting_repository)],
     tracker: Annotated[IObservabilityTracker, Depends(get_observability_tracker)],
+    publisher: Annotated[IEventPublisher, Depends(get_event_publisher_dep)],
 ) -> UnderwriteResponseSchema:
     record = await repo.get_by_id(application_id)
     if not record:
@@ -398,5 +499,28 @@ async def submit_human_review(
             "is_completed": final_snapshot.values.get("is_completed", True),
         },
     )
+
+    # Publicar evento de resolución final (SPEC-06: AWS SNS + Telegram + SSE)
+    resolution_severity = EventSeverity.INFO if payload.approved else EventSeverity.WARNING
+    resolution_status = "APROBADO" if payload.approved else "RECHAZADO"
+    resolution_event = CreditUnderwritingEvent(
+        event_type=CreditEventType.HUMAN_RESOLVED,
+        severity=resolution_severity,
+        application_id=application_id,
+        associated_id=record.get("associated_id", ""),
+        business_name=record.get("business_name", ""),
+        summary=(
+            f"Resolución de oficial de crédito: {resolution_status}. Condiciones: {payload.notes}"
+        ),
+        payload={
+            "approved": payload.approved,
+            "notes": payload.notes,
+            "requested_amount_usd": record.get("requested_amount_usd", 0.0),
+            "recommendation": resolution_status,
+        },
+    )
+
+    await publisher.publish_event(resolution_event)
+    background_tasks.add_task(_telegram_notifier.send_risk_alert, resolution_event)
 
     return _format_underwrite_response(application_id, final_snapshot.values)

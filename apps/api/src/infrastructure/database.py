@@ -68,9 +68,15 @@ engine, async_session_factory = create_engine_and_sessionmaker()
 
 
 async def init_db(target_engine: AsyncEngine | None = None) -> None:
-    """Crea las tablas declarativas si no existen en la base de datos."""
+    """Crea las tablas declarativas y habilita pgvector si no existen en la base de datos."""
+    import src.infrastructure.models  # noqa: F401
+
     eng = target_engine or engine
     async with eng.begin() as conn:
+        if eng.dialect.name == "postgresql":
+            from sqlalchemy import text
+
+            await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector;"))
         await conn.run_sync(Base.metadata.create_all)
 
 

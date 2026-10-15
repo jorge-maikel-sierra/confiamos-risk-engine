@@ -52,6 +52,10 @@ async def test_graph_pauses_for_human_review() -> None:
     assert round(values["metrics"].dscr_result.dscr, 4) == 2.0208
     assert values["ai_verdict"] is not None
     assert values["ai_verdict"].recommendation == CreditRecommendation.APROBADO
+    assert values["scorecard"] is not None
+    assert values["scorecard"]["rating_category"] == "A"
+    assert values["scorecard"]["total_score"] >= 85.0
+    assert values["scorecard"]["estimated_provision_usd"] == 750.0  # 1% de 75,000
     assert auditor.call_count == 1
 
 

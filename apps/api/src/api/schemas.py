@@ -2,6 +2,7 @@
 
 from pydantic import BaseModel, Field
 
+from src.domain.scoring import CreditScorecardResult
 from src.domain.state import UnderwritingVerdict
 
 
@@ -70,6 +71,7 @@ class UnderwriteResponseSchema(BaseModel):
     is_completed: bool
     metrics: MetricsSummarySchema | None = None
     ai_verdict: UnderwritingVerdict | None = None
+    scorecard: CreditScorecardResult | None = None
     historical_precedents: list[HistoricalPrecedentSchema] = Field(default_factory=list)
     human_approved: bool | None = None
     human_notes: str | None = None

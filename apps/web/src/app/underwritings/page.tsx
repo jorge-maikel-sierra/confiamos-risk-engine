@@ -235,11 +235,18 @@ export default function UnderwritingsInboxPage() {
                     <span className="text-[11px] font-mono font-bold text-slate-400">
                       {item.application_id}
                     </span>
-                    <VerdictBadge
-                      recommendation={item.ai_verdict?.recommendation}
-                      step={item.current_step}
-                      isCompleted={item.is_completed}
-                    />
+                    <div className="flex items-center gap-1.5">
+                      {item.scorecard?.rating_category && (
+                        <span className="text-[10px] font-black px-1.5 py-0.5 rounded border bg-slate-100 text-slate-800 border-slate-300" title={`Rating Regulatorio: Categoría ${item.scorecard.rating_category}`}>
+                          {item.scorecard.rating_category}
+                        </span>
+                      )}
+                      <VerdictBadge
+                        recommendation={item.ai_verdict?.recommendation}
+                        step={item.current_step}
+                        isCompleted={item.is_completed}
+                      />
+                    </div>
                   </div>
 
                   <h3 className="text-base font-bold text-slate-900 tracking-tight flex items-center gap-1.5 line-clamp-1">

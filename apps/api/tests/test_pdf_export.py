@@ -1,6 +1,5 @@
 """Tests unitarios para la generación de legajos oficiales en PDF (SPEC-07 / TDD Seam 2)."""
 
-
 from src.domain.crypto_seal import CryptoSealService
 from src.infrastructure.pdf_generator import PdfDossierGenerator
 

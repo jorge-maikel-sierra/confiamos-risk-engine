@@ -1,6 +1,5 @@
 """Tests unitarios para el sellado criptográfico de integridad (SPEC-07 / TDD Seam 1)."""
 
-
 from src.domain.crypto_seal import CryptoSealService
 
 

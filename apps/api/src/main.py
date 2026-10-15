@@ -6,10 +6,10 @@ from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 from fastapi import FastAPI
 
-load_dotenv()
-
 from src.api.routes.underwriting import router as underwriting_router
 from src.infrastructure.database import init_db
+
+load_dotenv()
 
 
 @asynccontextmanager

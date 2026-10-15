@@ -91,3 +91,37 @@ export async function submitHumanReview(
 
   return res.json();
 }
+
+export function getPdfExportUrl(id: string): string {
+  return `${BASE_URL}/underwritings/${encodeURIComponent(id)}/export/pdf`;
+}
+
+export function getExcelExportUrl(id: string): string {
+  return `${BASE_URL}/underwritings/${encodeURIComponent(id)}/export/excel`;
+}
+
+export interface SealVerificationResult {
+  application_id: string;
+  expected_hash: string;
+  provided_hash: string | null;
+  is_authentic: boolean;
+  verified_at: string;
+}
+
+export async function verifyIntegritySeal(
+  id: string,
+  hash?: string
+): Promise<SealVerificationResult> {
+  const url = new URL(
+    `${BASE_URL}/underwritings/${encodeURIComponent(id)}/verify-seal`
+  );
+  if (hash) {
+    url.searchParams.set("hash", hash);
+  }
+  const res = await fetch(url.toString(), { cache: "no-store" });
+  if (!res.ok) {
+    throw new Error(`Error al verificar sello: ${res.statusText}`);
+  }
+  return res.json();
+}
+

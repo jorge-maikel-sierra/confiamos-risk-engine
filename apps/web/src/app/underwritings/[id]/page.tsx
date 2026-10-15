@@ -15,8 +15,18 @@ import {
   AlertTriangle,
   RefreshCw,
   History,
+  FileText,
+  FileSpreadsheet,
+  ShieldCheck,
+  CheckCircle2,
 } from "lucide-react";
-import { fetchUnderwritingById } from "@/lib/api";
+import {
+  fetchUnderwritingById,
+  getExcelExportUrl,
+  getPdfExportUrl,
+  verifyIntegritySeal,
+  SealVerificationResult,
+} from "@/lib/api";
 import { UnderwritingRecord } from "@/types/underwriting";
 import { MetricCard } from "@/components/MetricCard";
 import { VerdictBadge } from "@/components/VerdictBadge";
@@ -31,6 +41,21 @@ export default function UnderwritingDetailPage() {
   const [record, setRecord] = useState<UnderwritingRecord | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [sealResult, setSealResult] = useState<SealVerificationResult | null>(null);
+  const [verifyingSeal, setVerifyingSeal] = useState(false);
+
+  const handleVerifySeal = async () => {
+    if (!record) return;
+    setVerifyingSeal(true);
+    try {
+      const res = await verifyIntegritySeal(record.application_id);
+      setSealResult(res);
+    } catch (err: unknown) {
+      console.error("Error al verificar sello:", err);
+    } finally {
+      setVerifyingSeal(false);
+    }
+  };
 
   const loadRecord = useCallback(async () => {
     if (!id) return;
@@ -123,8 +148,30 @@ export default function UnderwritingDetailPage() {
             </p>
           </div>
 
-          <div className="flex items-center gap-4 border-t md:border-t-0 pt-3 md:pt-0 border-slate-100">
-            <div className="text-right">
+          <div className="flex flex-wrap items-center gap-3 border-t md:border-t-0 pt-3 md:pt-0 border-slate-100">
+            <a
+              href={getPdfExportUrl(record.application_id)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-slate-700 bg-slate-50 hover:bg-slate-100 border border-slate-200 transition shadow-sm hover:border-slate-300"
+              title="Descargar Dictamen Oficial en PDF"
+            >
+              <FileText className="w-4 h-4 text-rose-600" />
+              <span>Dictamen (PDF)</span>
+            </a>
+
+            <a
+              href={getExcelExportUrl(record.application_id)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-slate-700 bg-slate-50 hover:bg-slate-100 border border-slate-200 transition shadow-sm hover:border-slate-300"
+              title="Descargar Planilla Financiera en Excel"
+            >
+              <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+              <span>Planilla (Excel)</span>
+            </a>
+
+            <div className="text-right pl-3 border-l border-slate-200 hidden sm:block">
               <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">Estado del Workflow</span>
               <span className="text-sm font-bold text-slate-800">{record.current_step}</span>
             </div>
@@ -343,6 +390,61 @@ export default function UnderwritingDetailPage() {
           humanNotes={record.human_notes}
           onReviewSubmitted={(updated) => setRecord(updated)}
         />
+      </section>
+
+      {/* 5. Sellado Criptográfico e Integridad de Datos (SPEC-07) */}
+      <section className="space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <h2 className="text-base font-bold text-slate-900 tracking-tight flex items-center gap-2">
+            <ShieldCheck className="w-5 h-5 text-blue-600" />
+            <span>5. Auditoría y Sellado Criptográfico de Integridad (SHA-256)</span>
+          </h2>
+          <button
+            onClick={handleVerifySeal}
+            disabled={verifyingSeal}
+            className="inline-flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 transition disabled:opacity-50"
+          >
+            {verifyingSeal ? (
+              <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <CheckCircle2 className="w-3.5 h-3.5 text-blue-600" />
+            )}
+            <span>Verificar Sello en Vivo</span>
+          </button>
+        </div>
+
+        <div className="p-5 bg-slate-900 text-white rounded-2xl border border-slate-800 shadow-sm space-y-3">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+            <div className="space-y-1 overflow-hidden">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                Digest Criptográfico SHA-256 (Determinístico)
+              </span>
+              <p className="text-xs font-mono text-emerald-400 break-all select-all">
+                {sealResult?.expected_hash ||
+                  "Haz clic en 'Verificar Sello en Vivo' para certificar la integridad del expediente."}
+              </p>
+            </div>
+            {sealResult && (
+              <div className="flex-shrink-0">
+                <span
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold ${
+                    sealResult.is_authentic
+                      ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40"
+                      : "bg-rose-500/20 text-rose-300 border border-rose-500/40"
+                  }`}
+                >
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  {sealResult.is_authentic
+                    ? "Integridad Certificada"
+                    : "Firma Alterada"}
+                </span>
+              </div>
+            )}
+          </div>
+          <p className="text-[11px] text-slate-400 leading-relaxed border-t border-slate-800/80 pt-2.5">
+            Garantiza no-repudio bancario y correspondencia exacta entre las métricas determinísticas, el dictamen del modelo y los documentos exportados para la auditoría de la Superintendencia.
+          </p>
+        </div>
       </section>
     </div>
   );

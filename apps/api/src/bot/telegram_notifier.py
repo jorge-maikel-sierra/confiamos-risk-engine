@@ -17,7 +17,11 @@ from src.domain.events import CreditUnderwritingEvent, EventSeverity
 class DailyPostStory(BaseModel):
     """Estructura de la historia diaria para redes sociales."""
 
-    day_number: int = Field(ge=1, le=100, description="Número del día en el reto de 100 días")
+    day_number: int = Field(
+        ge=1,
+        le=100,
+        description="Día del plan de desarrollo y entrega a 100 días para cliente real",
+    )
     hook: str = Field(description="Frase de impacto inicial sobre el dolor o error del día")
     conflict: str = Field(description="El trade-off técnico o desafío arquitectónico")
     solution: str = Field(description="Cómo quedó resuelto de forma determinística y testeada")
@@ -26,7 +30,7 @@ class DailyPostStory(BaseModel):
         description="Enlace al repositorio o pull request",
     )
     hashtags: list[str] = Field(
-        default_factory=lambda: ["#100DaysOfCode", "#AIEngineering", "#Fintech"],
+        default_factory=lambda: ["#Fintech", "#SoftwareEngineering", "#AIEngineering"],
         description="Lista de hashtags (exactamente 3)",
     )
 
@@ -41,7 +45,8 @@ class DailyPostStory(BaseModel):
         """Formatea la historia con espaciado óptimo para lectura en LinkedIn y X."""
         tags_str = " ".join(self.hashtags)
         return (
-            f"🚀 Día {self.day_number}/100 — Confiamos Risk Engine (CRE)\n\n"
+            f"🚀 Día {self.day_number}/100 — Confiamos Risk Engine (CRE)\n"
+            f"📦 Proyecto de la Vida Real | Entrega Pactada a 100 Días\n\n"
             f"{self.hook}\n\n"
             f"💡 El desafío técnico:\n{self.conflict}\n\n"
             f"🛠️ La solución:\n{self.solution}\n\n"

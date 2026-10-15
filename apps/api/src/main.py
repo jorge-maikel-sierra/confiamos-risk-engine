@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from src.api.routes.underwriting import router as underwriting_router
 from src.infrastructure.database import init_db
@@ -31,6 +32,15 @@ app = FastAPI(
     ),
     version="1.0.0",
     lifespan=lifespan,
+)
+
+# Configuración de CORS para habilitar consumo desde el Dashboard Web (Next.js 14)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Ruta canónica en plural conforme al estándar estricto de APIs REST (FreeCodeCamp)

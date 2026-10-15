@@ -4,7 +4,10 @@ from fastapi import FastAPI
 
 app = FastAPI(
     title="Confiamos Risk Engine (CRE)",
-    description="Motor determinístico y asistido por IA para evaluación crediticia de Cooperativa Confiamos.",
+    description=(
+        "Motor determinístico y asistido por IA para evaluación crediticia de "
+        "Cooperativa Confiamos."
+    ),
     version="1.0.0",
 )
 

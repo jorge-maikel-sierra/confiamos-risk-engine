@@ -16,6 +16,7 @@ from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, START, StateGraph
 
 from src.domain.metrics import FinancialInput, evaluate_financial_health
+from src.domain.scoring import RegulatoryScorecardEngine
 from src.domain.state import CreditUnderwritingState
 from src.domain.vector_search import (
     IEmbeddingGenerator,
@@ -151,10 +152,37 @@ def create_underwriting_graph(
 
         return {
             "ai_verdict": verdict,
+            "current_step": "RISK_AUDITED",
+        }
+
+    # 5. Nodo de Scoring Regulatorio y Provisiones (SPEC-09)
+    async def calculate_scorecard_node(state: CreditUnderwritingState) -> dict[str, Any]:
+        metrics = state.get("metrics")
+        raw = state.get("raw_financials", {})
+        ai_verdict = state.get("ai_verdict")
+        amount = state.get("requested_amount_usd", 0.0)
+
+        if not metrics:
+            return {"current_step": "SCORECARD_SKIPPED", "scorecard": None}
+
+        top_client_pct = float(raw.get("top_client_revenue_percentage", 20.0))
+        negative_days = int(raw.get("negative_balance_days", 0))
+        rec = ai_verdict.recommendation if ai_verdict else None
+
+        scorecard_res = RegulatoryScorecardEngine.evaluate(
+            metrics=metrics,
+            top_client_percentage=top_client_pct,
+            negative_balance_days=negative_days,
+            ai_recommendation=str(rec) if rec else None,
+            requested_amount_usd=amount,
+        )
+
+        return {
+            "scorecard": scorecard_res.model_dump(),
             "current_step": "PENDING_HUMAN_REVIEW",
         }
 
-    # 5. Nodo de Revisión Humana (Human-in-the-loop checkpoint)
+    # 6. Nodo de Revisión Humana (Human-in-the-loop checkpoint)
     async def human_review_node(state: CreditUnderwritingState) -> dict[str, Any]:
         human_approved = state.get("human_approved")
         human_notes = state.get("human_notes", "Sin notas del oficial de crédito")
@@ -165,7 +193,7 @@ def create_underwriting_graph(
             "human_notes": human_notes,
         }
 
-    # 6. Nodo de Finalización
+    # 7. Nodo de Finalización
     async def finalize_node(state: CreditUnderwritingState) -> dict[str, Any]:
         return {
             "current_step": "COMPLETED",
@@ -185,6 +213,7 @@ def create_underwriting_graph(
     workflow.add_node("compute_metrics", compute_metrics_node)
     workflow.add_node("retrieve_precedents", retrieve_precedents_node)
     workflow.add_node("audit_risk", audit_risk_node)
+    workflow.add_node("calculate_scorecard", calculate_scorecard_node)
     workflow.add_node("human_review", human_review_node)
     workflow.add_node("finalize", finalize_node)
 
@@ -199,7 +228,8 @@ def create_underwriting_graph(
     )
     workflow.add_edge("compute_metrics", "retrieve_precedents")
     workflow.add_edge("retrieve_precedents", "audit_risk")
-    workflow.add_edge("audit_risk", "human_review")
+    workflow.add_edge("audit_risk", "calculate_scorecard")
+    workflow.add_edge("calculate_scorecard", "human_review")
     workflow.add_edge("human_review", "finalize")
     workflow.add_edge("finalize", END)
 

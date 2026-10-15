@@ -51,6 +51,7 @@ from src.domain.repositories import (
     IUnderwritingRepository,
     PostgresUnderwritingRepository,
 )
+from src.domain.scoring import CreditScorecardResult
 from src.domain.state import CreditUnderwritingState
 from src.domain.vector_search import (
     IEmbeddingGenerator,
@@ -203,6 +204,11 @@ def _format_underwrite_response(app_id: str, values: dict[str, Any]) -> Underwri
         elif isinstance(item, dict):
             historical_precedents.append(HistoricalPrecedentSchema(**item))
 
+    scorecard_val = None
+    if values.get("scorecard"):
+        sc = values["scorecard"]
+        scorecard_val = sc if isinstance(sc, CreditScorecardResult) else CreditScorecardResult(**sc)
+
     return UnderwriteResponseSchema(
         application_id=app_id,
         associated_id=values.get("associated_id", ""),
@@ -212,6 +218,7 @@ def _format_underwrite_response(app_id: str, values: dict[str, Any]) -> Underwri
         is_completed=values.get("is_completed", False),
         metrics=metrics_summary,
         ai_verdict=values.get("ai_verdict"),
+        scorecard=scorecard_val,
         historical_precedents=historical_precedents,
         human_approved=values.get("human_approved"),
         human_notes=values.get("human_notes"),
@@ -326,12 +333,15 @@ async def start_underwriting(
         precs = snapshot.values["historical_precedents"]
         precedents_data = [p.to_dict() if hasattr(p, "to_dict") else p for p in precs]
 
+    scorecard_data = snapshot.values.get("scorecard")
+
     await repo.update_snapshot(
         application_id=application_id,
         current_step=snapshot.values.get("current_step", "PENDING_HUMAN_REVIEW"),
         metrics=metrics_data,
         ai_verdict=verdict_data,
         historical_precedents=precedents_data,
+        scorecard=scorecard_data,
     )
 
     # 5. Registrar span de cálculo determinístico y actualizar output del ciclo de vida

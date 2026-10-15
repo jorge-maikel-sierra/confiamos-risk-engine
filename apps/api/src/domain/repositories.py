@@ -48,6 +48,7 @@ class IUnderwritingRepository(ABC):
         metrics: dict[str, Any] | None = None,
         ai_verdict: dict[str, Any] | None = None,
         historical_precedents: list[dict[str, Any]] | None = None,
+        scorecard: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Actualiza el estado intermedio y resultados de cómputo del StateGraph."""
         ...
@@ -90,6 +91,7 @@ class InMemoryUnderwritingRepository(IUnderwritingRepository):
             "raw_financials": raw_financials,
             "metrics": None,
             "ai_verdict": None,
+            "scorecard": None,
             "historical_precedents": [],
             "human_approved": None,
             "human_notes": None,
@@ -118,6 +120,7 @@ class InMemoryUnderwritingRepository(IUnderwritingRepository):
         metrics: dict[str, Any] | None = None,
         ai_verdict: dict[str, Any] | None = None,
         historical_precedents: list[dict[str, Any]] | None = None,
+        scorecard: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         record = self._storage.get(application_id)
         if not record:
@@ -129,6 +132,8 @@ class InMemoryUnderwritingRepository(IUnderwritingRepository):
             record["ai_verdict"] = ai_verdict
         if historical_precedents is not None:
             record["historical_precedents"] = historical_precedents
+        if scorecard is not None:
+            record["scorecard"] = scorecard
         return record
 
     async def submit_human_review(
@@ -206,6 +211,7 @@ class PostgresUnderwritingRepository(IUnderwritingRepository):
         metrics: dict[str, Any] | None = None,
         ai_verdict: dict[str, Any] | None = None,
         historical_precedents: list[dict[str, Any]] | None = None,
+        scorecard: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         stmt = select(CreditApplicationModel).where(CreditApplicationModel.id == application_id)
         result = await self.session.execute(stmt)
@@ -220,6 +226,8 @@ class PostgresUnderwritingRepository(IUnderwritingRepository):
             model.ai_verdict = ai_verdict
         if historical_precedents is not None:
             model.historical_precedents = historical_precedents
+        if scorecard is not None:
+            model.scorecard = scorecard
 
         await self.session.flush()
         await self.session.refresh(model)

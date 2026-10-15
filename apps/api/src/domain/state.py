@@ -62,6 +62,9 @@ class CreditUnderwritingState(TypedDict, total=False):
     # Razonamiento cualitativo de IA
     ai_verdict: UnderwritingVerdict | None
 
+    # Scoring regulatorio y provisiones (SPEC-09)
+    scorecard: dict[str, Any] | None
+
     # Intervención humana (Human-in-the-loop)
     human_approved: bool | None
     human_notes: str | None

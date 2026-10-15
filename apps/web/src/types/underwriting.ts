@@ -43,6 +43,7 @@ export interface UnderwritingRecord {
   is_completed: boolean;
   metrics: MetricsSummary | null;
   ai_verdict: UnderwritingVerdict | null;
+  scorecard?: CreditScorecardResult | null;
   historical_precedents?: HistoricalPrecedent[];
   human_approved: boolean | null;
   human_notes: string | null;
@@ -113,4 +114,23 @@ export interface FinancialExtractionResult {
   detected_anomalies: string[];
   extracted_source_name: string;
   summary_notes: string;
+}
+
+export type RiskRatingCategory = "A" | "B" | "C" | "D" | "E";
+
+export interface ScorecardBreakdown {
+  dscr_score: number;
+  liquidity_score: number;
+  concentration_score: number;
+  ai_alignment_score: number;
+}
+
+export interface CreditScorecardResult {
+  total_score: number;
+  rating_category: RiskRatingCategory;
+  category_title: string;
+  provision_percentage: number;
+  estimated_provision_usd: number;
+  breakdown: ScorecardBreakdown;
+  regulatory_justification: string;
 }

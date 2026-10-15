@@ -40,6 +40,7 @@ class CreditApplicationModel(Base):
     raw_financials: Mapped[dict[str, Any]] = mapped_column(JSONType, nullable=False)
     metrics: Mapped[dict[str, Any] | None] = mapped_column(JSONType, nullable=True)
     ai_verdict: Mapped[dict[str, Any] | None] = mapped_column(JSONType, nullable=True)
+    scorecard: Mapped[dict[str, Any] | None] = mapped_column(JSONType, nullable=True)
     historical_precedents: Mapped[list[dict[str, Any]] | None] = mapped_column(
         JSONType, nullable=True
     )
@@ -74,6 +75,7 @@ class CreditApplicationModel(Base):
             "raw_financials": self.raw_financials,
             "metrics": self.metrics,
             "ai_verdict": self.ai_verdict,
+            "scorecard": self.scorecard,
             "historical_precedents": self.historical_precedents or [],
             "human_approved": self.human_approved,
             "human_notes": self.human_notes,

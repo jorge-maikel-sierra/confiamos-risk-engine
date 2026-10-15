@@ -7,7 +7,16 @@ from collections.abc import AsyncGenerator
 from datetime import UTC, datetime
 from typing import Annotated, Any
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    File,
+    HTTPException,
+    Query,
+    UploadFile,
+    status,
+)
 from fastapi.responses import Response, StreamingResponse
 from langgraph.checkpoint.memory import MemorySaver
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -22,6 +31,15 @@ from src.api.schemas import (
 )
 from src.bot.telegram_notifier import TelegramNotifier
 from src.domain.crypto_seal import CryptoSealService
+from src.domain.document_ingestion import (
+    CorruptedDocumentError,
+    ExcelDocumentExtractor,
+    FileValidator,
+    FinancialExtractionResult,
+    GeminiDocumentExtractor,
+    PayloadTooLargeError,
+    UnsupportedFileTypeError,
+)
 from src.domain.events import (
     CreditEventType,
     CreditUnderwritingEvent,
@@ -409,6 +427,60 @@ async def list_underwritings(
     )
 
 
+@router.post(
+    "/upload-financials",
+    response_model=FinancialExtractionResult,
+    status_code=status.HTTP_200_OK,
+    summary="Ingesta documental y extracción financiera (SPEC-08)",
+    description=(
+        "Carga un archivo de balance o extracto bancario en formato PDF o Excel (.xlsx), "
+        "valida magic bytes y extrae estructuradamente las métricas contables."
+    ),
+)
+async def upload_financial_document(
+    file: Annotated[UploadFile, File(description="Archivo PDF o Excel con estados financieros")],
+    auditor: Annotated[RiskAuditorProtocol, Depends(get_risk_auditor)],
+) -> FinancialExtractionResult:
+    filename = file.filename or "documento"
+    content = await file.read()
+
+    try:
+        doc_type = FileValidator.validate(filename=filename, file_bytes=content)
+    except UnsupportedFileTypeError as e:
+        raise HTTPException(
+            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            detail=str(e),
+        ) from e
+    except PayloadTooLargeError as e:
+        raise HTTPException(
+            status_code=status.HTTP_413_CONTENT_TOO_LARGE,
+            detail=str(e),
+        ) from e
+    except CorruptedDocumentError as e:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=str(e),
+        ) from e
+
+    if doc_type == "xlsx":
+        extractor = ExcelDocumentExtractor()
+    else:
+        extractor = GeminiDocumentExtractor(gemini_adapter=auditor)
+
+    try:
+        return await extractor.extract_financial_data(file_bytes=content, filename=filename)
+    except CorruptedDocumentError as e:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=str(e),
+        ) from e
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Fallo en el procesamiento del documento: {e}",
+        ) from e
+
+
 @router.get(
     "/{application_id}",
     response_model=UnderwriteResponseSchema,
@@ -674,4 +746,3 @@ async def verify_seal(
         "is_authentic": is_authentic,
         "verified_at": datetime.now(UTC).isoformat(),
     }
-

@@ -101,3 +101,16 @@ export interface CreditUnderwritingEvent {
   summary: string;
   payload: Record<string, unknown>;
 }
+
+export interface FinancialExtractionResult {
+  operating_cash_flow: number;
+  annual_debt_service: number;
+  current_assets: number;
+  current_liabilities: number;
+  cash_balance: number;
+  monthly_burn_rate: number;
+  confidence_score: number;
+  detected_anomalies: string[];
+  extracted_source_name: string;
+  summary_notes: string;
+}

@@ -1,11 +1,21 @@
-"use client";
-
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Building2, DollarSign, Calculator, Loader2, AlertTriangle } from "lucide-react";
+import {
+  ArrowLeft,
+  Building2,
+  Calculator,
+  Loader2,
+  AlertTriangle,
+  Sparkles,
+  Check,
+} from "lucide-react";
 import { createUnderwriting } from "@/lib/api";
-import { CreateUnderwritingPayload } from "@/types/underwriting";
+import {
+  CreateUnderwritingPayload,
+  FinancialExtractionResult,
+} from "@/types/underwriting";
+import { DocumentDropzone } from "@/components/DocumentDropzone";
 
 export default function NewUnderwritingPage() {
   const router = useRouter();
@@ -25,8 +35,44 @@ export default function NewUnderwritingPage() {
     top_client_revenue_percentage: 24,
   });
 
+  const [autofilledFields, setAutofilledFields] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const handleExtracted = (extracted: FinancialExtractionResult) => {
+    const updatedKeys: string[] = [];
+
+    setFormData((prev) => {
+      const next = { ...prev };
+      if (extracted.operating_cash_flow > 0) {
+        next.operating_cash_flow = extracted.operating_cash_flow;
+        updatedKeys.push("operating_cash_flow");
+      }
+      if (extracted.annual_debt_service > 0) {
+        next.annual_debt_service = extracted.annual_debt_service;
+        updatedKeys.push("annual_debt_service");
+      }
+      if (extracted.current_assets > 0) {
+        next.current_assets = extracted.current_assets;
+        updatedKeys.push("current_assets");
+      }
+      if (extracted.current_liabilities > 0) {
+        next.current_liabilities = extracted.current_liabilities;
+        updatedKeys.push("current_liabilities");
+      }
+      if (extracted.cash_balance > 0) {
+        next.cash_balance = extracted.cash_balance;
+        updatedKeys.push("cash_balance");
+      }
+      if (extracted.monthly_burn_rate > 0) {
+        next.monthly_burn_rate = extracted.monthly_burn_rate;
+        updatedKeys.push("monthly_burn_rate");
+      }
+      return next;
+    });
+
+    setAutofilledFields(updatedKeys);
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type } = e.target;
@@ -169,17 +215,47 @@ export default function NewUnderwritingPage() {
           </div>
         </div>
 
+        {/* Ingesta Documental Inteligente (SPEC-08) */}
+        <div className="space-y-3 pt-4 border-t border-slate-100">
+          <div className="flex items-center justify-between">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-blue-600" />
+              2. Ingesta Inteligente de Estados Financieros (Opcional)
+            </h3>
+            <span className="text-[11px] font-medium text-slate-400">
+              PDF o Excel (.xlsx, .xls)
+            </span>
+          </div>
+          <p className="text-xs text-slate-500">
+            Cargue su balance general o extracto bancario para precompletar automáticamente las cifras contables inferiores.
+          </p>
+          <DocumentDropzone onExtracted={handleExtracted} />
+        </div>
+
         {/* Indicadores Financieros de Entrada */}
         <div className="space-y-4 pt-4 border-t border-slate-100">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 pb-2 border-b border-slate-100 flex items-center gap-2">
-            <Calculator className="w-4 h-4 text-emerald-600" />
-            2. Balances Contables y Extractos Financieros
-          </h3>
+          <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
+              <Calculator className="w-4 h-4 text-emerald-600" />
+              3. Balances Contables y Cifras Validadas
+            </h3>
+            {autofilledFields.length > 0 && (
+              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                <Check className="w-3 h-3 text-emerald-600" />
+                {autofilledFields.length} campos pre-cargados
+              </span>
+            )}
+          </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Flujo de Caja Operativo Anual (USD) *
+              <label className="flex items-center justify-between text-xs font-semibold text-slate-700 mb-1">
+                <span>Flujo de Caja Operativo Anual (USD) *</span>
+                {autofilledFields.includes("operating_cash_flow") && (
+                  <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-1.5 py-0.2 rounded">
+                    Auto-extraído
+                  </span>
+                )}
               </label>
               <input
                 type="number"
@@ -187,13 +263,22 @@ export default function NewUnderwritingPage() {
                 required
                 value={formData.operating_cash_flow}
                 onChange={handleChange}
-                className="w-full text-xs rounded-xl border border-slate-200 p-3 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                className={`w-full text-xs rounded-xl border p-3 focus:outline-none focus:ring-2 focus:ring-blue-500 transition ${
+                  autofilledFields.includes("operating_cash_flow")
+                    ? "border-emerald-300 bg-emerald-50/20"
+                    : "border-slate-200"
+                }`}
               />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Servicio de Deuda Anual Existente (USD) *
+              <label className="flex items-center justify-between text-xs font-semibold text-slate-700 mb-1">
+                <span>Servicio de Deuda Anual Existente (USD) *</span>
+                {autofilledFields.includes("annual_debt_service") && (
+                  <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-1.5 py-0.2 rounded">
+                    Auto-extraído
+                  </span>
+                )}
               </label>
               <input
                 type="number"
@@ -201,13 +286,22 @@ export default function NewUnderwritingPage() {
                 required
                 value={formData.annual_debt_service}
                 onChange={handleChange}
-                className="w-full text-xs rounded-xl border border-slate-200 p-3 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                className={`w-full text-xs rounded-xl border p-3 focus:outline-none focus:ring-2 focus:ring-blue-500 transition ${
+                  autofilledFields.includes("annual_debt_service")
+                    ? "border-emerald-300 bg-emerald-50/20"
+                    : "border-slate-200"
+                }`}
               />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Total Activos Corrientes (USD) *
+              <label className="flex items-center justify-between text-xs font-semibold text-slate-700 mb-1">
+                <span>Total Activos Corrientes (USD) *</span>
+                {autofilledFields.includes("current_assets") && (
+                  <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-1.5 py-0.2 rounded">
+                    Auto-extraído
+                  </span>
+                )}
               </label>
               <input
                 type="number"
@@ -215,13 +309,22 @@ export default function NewUnderwritingPage() {
                 required
                 value={formData.current_assets}
                 onChange={handleChange}
-                className="w-full text-xs rounded-xl border border-slate-200 p-3 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                className={`w-full text-xs rounded-xl border p-3 focus:outline-none focus:ring-2 focus:ring-blue-500 transition ${
+                  autofilledFields.includes("current_assets")
+                    ? "border-emerald-300 bg-emerald-50/20"
+                    : "border-slate-200"
+                }`}
               />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Total Pasivos Corrientes (USD) *
+              <label className="flex items-center justify-between text-xs font-semibold text-slate-700 mb-1">
+                <span>Total Pasivos Corrientes (USD) *</span>
+                {autofilledFields.includes("current_liabilities") && (
+                  <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-1.5 py-0.2 rounded">
+                    Auto-extraído
+                  </span>
+                )}
               </label>
               <input
                 type="number"
@@ -229,13 +332,22 @@ export default function NewUnderwritingPage() {
                 required
                 value={formData.current_liabilities}
                 onChange={handleChange}
-                className="w-full text-xs rounded-xl border border-slate-200 p-3 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                className={`w-full text-xs rounded-xl border p-3 focus:outline-none focus:ring-2 focus:ring-blue-500 transition ${
+                  autofilledFields.includes("current_liabilities")
+                    ? "border-emerald-300 bg-emerald-50/20"
+                    : "border-slate-200"
+                }`}
               />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Saldo de Caja y Bancos (USD) *
+              <label className="flex items-center justify-between text-xs font-semibold text-slate-700 mb-1">
+                <span>Saldo de Caja y Bancos (USD) *</span>
+                {autofilledFields.includes("cash_balance") && (
+                  <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-1.5 py-0.2 rounded">
+                    Auto-extraído
+                  </span>
+                )}
               </label>
               <input
                 type="number"
@@ -243,20 +355,33 @@ export default function NewUnderwritingPage() {
                 required
                 value={formData.cash_balance}
                 onChange={handleChange}
-                className="w-full text-xs rounded-xl border border-slate-200 p-3 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                className={`w-full text-xs rounded-xl border p-3 focus:outline-none focus:ring-2 focus:ring-blue-500 transition ${
+                  autofilledFields.includes("cash_balance")
+                    ? "border-emerald-300 bg-emerald-50/20"
+                    : "border-slate-200"
+                }`}
               />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Tasa de Quema Mensual (Burn Rate)
+              <label className="flex items-center justify-between text-xs font-semibold text-slate-700 mb-1">
+                <span>Tasa de Quema Mensual (Burn Rate)</span>
+                {autofilledFields.includes("monthly_burn_rate") && (
+                  <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-1.5 py-0.2 rounded">
+                    Auto-extraído
+                  </span>
+                )}
               </label>
               <input
                 type="number"
                 name="monthly_burn_rate"
                 value={formData.monthly_burn_rate}
                 onChange={handleChange}
-                className="w-full text-xs rounded-xl border border-slate-200 p-3 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                className={`w-full text-xs rounded-xl border p-3 focus:outline-none focus:ring-2 focus:ring-blue-500 transition ${
+                  autofilledFields.includes("monthly_burn_rate")
+                    ? "border-emerald-300 bg-emerald-50/20"
+                    : "border-slate-200"
+                }`}
               />
             </div>
 

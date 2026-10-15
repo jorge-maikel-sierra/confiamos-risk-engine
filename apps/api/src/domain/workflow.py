@@ -83,6 +83,8 @@ def create_underwriting_graph(
             requested_amount_usd=state.get("requested_amount_usd", 0.0),
             term_months=state.get("term_months", 12),
             metrics=metrics,
+            application_id=state.get("application_id"),
+            associated_id=state.get("associated_id"),
         )
 
         return {

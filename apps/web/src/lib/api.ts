@@ -5,8 +5,12 @@ import {
   UnderwritingRecord,
 } from "@/types/underwriting";
 
-const BASE_URL =
+export const BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+
+export function getUnderwritingEventsUrl(): string {
+  return `${BASE_URL}/underwritings/events`;
+}
 
 export async function fetchUnderwritings(
   status?: string,

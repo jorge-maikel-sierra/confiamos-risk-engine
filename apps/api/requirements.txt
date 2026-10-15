@@ -1,0 +1,13 @@
+fastapi>=0.115.0
+uvicorn[standard]>=0.32.0
+pydantic>=2.9.0
+pydantic-settings>=2.6.0
+langgraph>=0.2.35
+google-genai>=0.1.1
+langfuse>=2.54.0
+pandas>=2.2.0
+numpy>=2.1.0
+httpx>=0.28.0
+pytest>=8.3.0
+pytest-asyncio>=0.24.0
+ruff>=0.7.0

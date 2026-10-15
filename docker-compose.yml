@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: confiamos-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: confiamos_user
+      POSTGRES_PASSWORD: confiamos_password
+      POSTGRES_DB: confiamos_risk_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U confiamos_user -d confiamos_risk_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:

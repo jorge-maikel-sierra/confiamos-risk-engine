@@ -1,0 +1,13 @@
+{
+  "name": "confiamos-risk-engine-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "lint:web": "npm --prefix apps/web run lint",
+    "format:web": "npm --prefix apps/web run format"
+  }
+}

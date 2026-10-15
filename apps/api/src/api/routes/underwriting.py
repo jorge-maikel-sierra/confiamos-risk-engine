@@ -4,10 +4,11 @@ import asyncio
 import os
 import uuid
 from collections.abc import AsyncGenerator
+from datetime import UTC, datetime
 from typing import Annotated, Any
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
-from fastapi.responses import StreamingResponse
+from fastapi.responses import Response, StreamingResponse
 from langgraph.checkpoint.memory import MemorySaver
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -20,6 +21,7 @@ from src.api.schemas import (
     UnderwriteResponseSchema,
 )
 from src.bot.telegram_notifier import TelegramNotifier
+from src.domain.crypto_seal import CryptoSealService
 from src.domain.events import (
     CreditEventType,
     CreditUnderwritingEvent,
@@ -44,6 +46,7 @@ from src.infrastructure.aws_sns_adapter import (
 )
 from src.infrastructure.database import get_db_session
 from src.infrastructure.embedding_adapter import get_embedding_generator
+from src.infrastructure.excel_generator import ExcelFinancialGenerator
 from src.infrastructure.gemini_adapter import (
     GeminiRiskAuditor,
     MockGeminiAuditor,
@@ -53,6 +56,7 @@ from src.infrastructure.observability import (
     IObservabilityTracker,
     get_observability_tracker,
 )
+from src.infrastructure.pdf_generator import PdfDossierGenerator
 from src.infrastructure.vector_repository import PostgresVectorSearchRepository
 
 router = APIRouter(tags=["Credit Underwriting"])
@@ -524,3 +528,150 @@ async def submit_human_review(
     background_tasks.add_task(_telegram_notifier.send_risk_alert, resolution_event)
 
     return _format_underwrite_response(application_id, final_snapshot.values)
+
+
+def _prepare_export_data(record: dict[str, Any], app_id: str) -> dict[str, Any]:
+    """Extrae y normaliza los datos canónicos necesarios para renderizar y sellar el legajo."""
+    metrics_obj = record.get("metrics") or {}
+    metrics_dict = {}
+    if isinstance(metrics_obj, dict):
+        dscr_val = metrics_obj.get("dscr")
+        if dscr_val is None and "dscr_result" in metrics_obj:
+            dscr_val = metrics_obj["dscr_result"].get("dscr")
+        metrics_dict = {
+            "dscr": dscr_val,
+            "current_ratio": metrics_obj.get("current_ratio", 0.0),
+            "runway_months": metrics_obj.get("runway_months"),
+            "operating_cash_flow": metrics_obj.get("operating_cash_flow", 0.0),
+            "annual_debt_service": metrics_obj.get("annual_debt_service", 0.0),
+            "is_debt_free": metrics_obj.get("is_debt_free", False),
+        }
+    elif hasattr(metrics_obj, "dscr_result"):
+        metrics_dict = {
+            "dscr": metrics_obj.dscr_result.dscr,
+            "current_ratio": metrics_obj.current_ratio,
+            "runway_months": metrics_obj.runway_months,
+            "operating_cash_flow": getattr(metrics_obj, "operating_cash_flow", 0.0),
+            "annual_debt_service": getattr(metrics_obj, "annual_debt_service", 0.0),
+            "is_debt_free": metrics_obj.dscr_result.is_debt_free,
+        }
+
+    precedents = []
+    for p in record.get("historical_precedents") or []:
+        if isinstance(p, dict):
+            precedents.append(p)
+        elif hasattr(p, "to_dict"):
+            precedents.append(p.to_dict())
+
+    raw_fin = record.get("financial_data") or record.get("raw_financials") or {}
+    ai_v = record.get("ai_verdict") or {}
+    if hasattr(ai_v, "model_dump"):
+        ai_v = ai_v.model_dump()
+
+    export_data = {
+        "id": app_id,
+        "associated_id": record.get("associated_id", "N/A"),
+        "business_name": record.get("business_name", "N/A"),
+        "requested_amount_usd": float(record.get("requested_amount_usd", 0.0)),
+        "term_months": int(record.get("term_months", 0)),
+        "created_at": str(record.get("created_at", "N/A")),
+        "metrics": metrics_dict,
+        "ai_verdict": ai_v,
+        "precedents": precedents,
+        "raw_financials": raw_fin,
+    }
+
+    crypto_hash = CryptoSealService.compute_canonical_hash(export_data)
+    export_data["crypto_hash"] = crypto_hash
+    return export_data
+
+
+@router.get(
+    "/{application_id}/export/pdf",
+    summary="Exportar dictamen formal en PDF bancario",
+    description=(
+        "Genera el acta oficial de dictamen crediticio con sello criptográfico "
+        "de integridad SHA-256."
+    ),
+)
+async def export_pdf(
+    application_id: str,
+    repo: Annotated[IUnderwritingRepository, Depends(get_underwriting_repository)],
+) -> Response:
+    record = await repo.get_by_id(application_id)
+    if not record:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"No se encontró la solicitud de crédito con ID: {application_id}",
+        )
+    data = _prepare_export_data(record, application_id)
+    pdf_bytes = PdfDossierGenerator().generate(data)
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'attachment; filename="dictamen-credito-{application_id}.pdf"'
+        },
+    )
+
+
+@router.get(
+    "/{application_id}/export/excel",
+    summary="Exportar planilla de trabajo financiero en Excel (.xlsx)",
+    description="Genera el libro de cálculo financiero con fórmulas vivas de liquidez y cobertura.",
+)
+async def export_excel(
+    application_id: str,
+    repo: Annotated[IUnderwritingRepository, Depends(get_underwriting_repository)],
+) -> Response:
+    record = await repo.get_by_id(application_id)
+    if not record:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"No se encontró la solicitud de crédito con ID: {application_id}",
+        )
+    data = _prepare_export_data(record, application_id)
+    excel_bytes = ExcelFinancialGenerator().generate(data)
+    return Response(
+        content=excel_bytes,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={
+            "Content-Disposition": f'attachment; filename="modelo-financiero-{application_id}.xlsx"'
+        },
+    )
+
+
+@router.get(
+    "/{application_id}/verify-seal",
+    summary="Verificar autenticidad del sello criptográfico",
+    description="Calcula el hash canónico actual y lo compara contra el hash proporcionado.",
+)
+async def verify_seal(
+    application_id: str,
+    repo: Annotated[IUnderwritingRepository, Depends(get_underwriting_repository)],
+    hash: str | None = Query(default=None, description="Hash SHA-256 a validar"),
+) -> dict[str, Any]:
+    record = await repo.get_by_id(application_id)
+    if not record:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"No se encontró la solicitud de crédito con ID: {application_id}",
+        )
+    data = _prepare_export_data(record, application_id)
+    canonical_hash = data["crypto_hash"]
+    is_authentic = False
+    if hash:
+        import hmac
+
+        is_authentic = hmac.compare_digest(canonical_hash, hash)
+    else:
+        is_authentic = True
+
+    return {
+        "application_id": application_id,
+        "expected_hash": canonical_hash,
+        "provided_hash": hash,
+        "is_authentic": is_authentic,
+        "verified_at": datetime.now(UTC).isoformat(),
+    }
+

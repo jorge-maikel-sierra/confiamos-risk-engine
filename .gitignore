@@ -19,6 +19,7 @@ out/
 build/
 dist/
 .pnpm-store/
+*.tsbuildinfo
 
 # IDE y Sistema
 .DS_Store

@@ -1,7 +1,9 @@
 """Tests unitarios y de integración para la capa de observabilidad con Langfuse.
 
-Issue #17 / SPEC-03.
+Issue #17 / SPEC-03 / Issue #19 (Langfuse v5 OpenTelemetry).
 """
+
+import uuid
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -20,6 +22,7 @@ from src.infrastructure.gemini_adapter import MockGeminiAuditor
 from src.infrastructure.observability import (
     LangfuseTracker,
     MockObservabilityTracker,
+    to_otel_trace_id,
 )
 from src.main import app
 
@@ -29,10 +32,25 @@ def clean_mock_tracker() -> MockObservabilityTracker:
     return MockObservabilityTracker()
 
 
+def test_to_otel_trace_id_generates_valid_32_hex() -> None:
+    """Verifica que to_otel_trace_id retorne cadenas hexadecimales de 32 caracteres."""
+    raw_uuid = str(uuid.uuid4())
+    hex_id = to_otel_trace_id(raw_uuid)
+    assert len(hex_id) == 32
+    assert int(hex_id, 16) >= 0
+
+    custom_id = "APP-TEST-OBS-1234"
+    custom_hex = to_otel_trace_id(custom_id)
+    assert len(custom_hex) == 32
+    assert int(custom_hex, 16) >= 0
+    # Es determinístico para el mismo valor
+    assert to_otel_trace_id(custom_id) == custom_hex
+
+
 def test_mock_observability_tracker_lifecycle(
     clean_mock_tracker: MockObservabilityTracker,
 ) -> None:
-    """Verifica el registro en memoria de trazas, generaciones y scores."""
+    """Verifica el registro en memoria de trazas, spans intermedios, generaciones y scores."""
     tracker = clean_mock_tracker
 
     # 1. Iniciar traza
@@ -47,7 +65,21 @@ def test_mock_observability_tracker_lifecycle(
     assert tracker.traces[0]["id"] == "APP-TEST-OBS"
     assert tracker.traces[0]["user_id"] == "CONF-12345"
 
-    # 2. Registrar generación
+    # 2. Registrar span hijo (tool)
+    tracker.record_span(
+        application_id="APP-TEST-OBS",
+        name="compute_financial_metrics",
+        input={"operating_cash_flow": 50000.0},
+        output={"dscr": 2.1},
+        as_type="tool",
+    )
+    assert len(tracker.spans) == 1
+    span = tracker.spans[0]
+    assert span["trace_id"] == "APP-TEST-OBS"
+    assert span["name"] == "compute_financial_metrics"
+    assert span["as_type"] == "tool"
+
+    # 3. Registrar generación
     tracker.record_generation(
         application_id="APP-TEST-OBS",
         model_name="gemini-1.5-flash",
@@ -62,7 +94,14 @@ def test_mock_observability_tracker_lifecycle(
     assert gen["model_name"] == "gemini-1.5-flash"
     assert gen["usage"]["total_tokens"] == 200
 
-    # 3. Registrar score humano
+    # 4. Actualizar output de la traza raíz
+    tracker.update_trace_output(
+        application_id="APP-TEST-OBS",
+        output={"current_step": "PENDING_HUMAN_REVIEW"},
+    )
+    assert tracker.traces[0]["output"]["current_step"] == "PENDING_HUMAN_REVIEW"
+
+    # 5. Registrar score humano
     tracker.record_human_score(
         application_id="APP-TEST-OBS",
         approved=True,
@@ -110,7 +149,9 @@ def test_langfuse_tracker_graceful_degradation() -> None:
     tracker = LangfuseTracker(public_key=None, secret_key=None)
     # Ninguna de estas operaciones debe fallar
     tracker.trace_start("APP-1", "CONF-1", "Empresa", 10000.0, 12)
+    tracker.record_span("APP-1", "compute_financial_metrics", {}, {}, as_type="tool")
     tracker.record_generation("APP-1", "gemini-1.5-flash", "prompt", {})
+    tracker.update_trace_output("APP-1", {"status": "ok"})
     tracker.record_human_score("APP-1", True, "ok")
     tracker.flush()
 
@@ -149,13 +190,22 @@ async def test_end_to_end_observability_via_api() -> None:
         assert res_create.status_code == 201
         app_id = res_create.json()["application_id"]
 
-        # Validar traza y generación registradas en el tracker
+        # Validar traza raíz registrada
         assert len(mock_tracker.traces) == 1
         assert mock_tracker.traces[0]["id"] == app_id
         assert mock_tracker.traces[0]["user_id"] == "CONF-TRACE-1"
 
+        # Validar span hijo para métricas determinísticas registrado
+        assert len(mock_tracker.spans) == 1
+        assert mock_tracker.spans[0]["name"] == "compute_financial_metrics"
+        assert mock_tracker.spans[0]["trace_id"] == app_id
+
+        # Validar generación con LLM registrada
         assert len(mock_tracker.generations) == 1
         assert mock_tracker.generations[0]["trace_id"] == app_id
+
+        # Validar actualización inicial del output en la traza raíz
+        assert mock_tracker.traces[0]["output"]["current_step"] == "PENDING_HUMAN_REVIEW"
 
         # 2. Emitir revisión humana
         review_payload = {
@@ -173,5 +223,9 @@ async def test_end_to_end_observability_via_api() -> None:
         assert score["trace_id"] == app_id
         assert score["value"] == 1.0
         assert "Aprobación de comité" in score["comment"]
+
+        # Validar output final de la traza raíz actualizado y finalizado
+        assert mock_tracker.traces[0]["output"]["is_completed"] is True
+        assert mock_tracker.traces[0]["output"]["human_approved"] is True
 
     app.dependency_overrides.clear()

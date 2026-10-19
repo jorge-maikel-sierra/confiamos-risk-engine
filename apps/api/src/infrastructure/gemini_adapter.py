@@ -7,29 +7,11 @@ pgvector.
 """
 
 import time
-from typing import Protocol
 
 from src.domain.metrics import FinancialHealthMetrics
+from src.domain.ports import IObservabilityTracker
 from src.domain.state import CreditRecommendation, UnderwritingVerdict
 from src.domain.vector_search import HistoricalLoanPrecedent, LoanOutcome
-from src.infrastructure.observability import IObservabilityTracker
-
-
-class RiskAuditorProtocol(Protocol):
-    """Protocolo abstracto para el servicio de auditoría de riesgo."""
-
-    async def audit_application(
-        self,
-        business_name: str,
-        requested_amount_usd: float,
-        term_months: int,
-        metrics: FinancialHealthMetrics,
-        application_id: str | None = None,
-        associated_id: str | None = None,
-        precedents: list[HistoricalLoanPrecedent] | None = None,
-    ) -> UnderwritingVerdict:
-        """Emite el dictamen estructurado de riesgo para una solicitud."""
-        ...
 
 
 class MockGeminiAuditor:

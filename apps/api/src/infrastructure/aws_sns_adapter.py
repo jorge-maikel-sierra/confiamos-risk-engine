@@ -75,6 +75,10 @@ class AwsSnsEventPublisher:
             # Fallback seguro que no interrumpe el flujo principal si AWS no responde
             return f"fallback-sns-local-{event.event_id[:8]}"
 
+    async def publish(self, event: CreditUnderwritingEvent) -> str:
+        """Alias para publicación de eventos."""
+        return await self.publish_event(event)
+
 
 # Broadcaster global singleton para SSE
 global_event_broadcaster = EventBroadcaster()

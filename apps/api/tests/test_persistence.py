@@ -6,11 +6,11 @@ Issue #11 / SPEC-02.
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from src.domain.repositories import (
+from src.infrastructure.database import Base
+from src.infrastructure.repositories import (
     InMemoryUnderwritingRepository,
     PostgresUnderwritingRepository,
 )
-from src.infrastructure.database import Base
 
 
 @pytest.fixture

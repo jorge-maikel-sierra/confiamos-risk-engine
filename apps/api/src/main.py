@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from src.api.middlewares.problem_details import register_problem_details_handlers
 from src.api.routes.underwriting import router as underwriting_router
 from src.infrastructure.database import init_db
 
@@ -33,6 +34,9 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan,
 )
+
+# Registro de manejadores de error conforme al estándar RFC 7807 (Problem Details)
+register_problem_details_handlers(app)
 
 # Configuración de CORS para habilitar consumo desde el Dashboard Web (Next.js 14)
 app.add_middleware(

@@ -17,13 +17,13 @@ from src.domain.metrics import (
     DSCRResult,
     FinancialHealthMetrics,
 )
-from src.domain.repositories import InMemoryUnderwritingRepository
 from src.infrastructure.gemini_adapter import MockGeminiAuditor
 from src.infrastructure.observability import (
     LangfuseTracker,
     MockObservabilityTracker,
     to_otel_trace_id,
 )
+from src.infrastructure.repositories import InMemoryUnderwritingRepository
 from src.main import app
 
 

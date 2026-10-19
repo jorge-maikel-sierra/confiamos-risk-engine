@@ -77,6 +77,12 @@ async def init_db(target_engine: AsyncEngine | None = None) -> None:
             from sqlalchemy import text
 
             await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector;"))
+
+        await conn.run_sync(Base.metadata.create_all)
+
+        if eng.dialect.name == "postgresql":
+            from sqlalchemy import text
+
             await conn.execute(
                 text("ALTER TABLE credit_applications ADD COLUMN IF NOT EXISTS scorecard JSONB;")
             )
@@ -86,7 +92,6 @@ async def init_db(target_engine: AsyncEngine | None = None) -> None:
                     "historical_precedents JSONB;"
                 )
             )
-        await conn.run_sync(Base.metadata.create_all)
 
 
 async def get_db_session() -> AsyncGenerator[AsyncSession, None]:

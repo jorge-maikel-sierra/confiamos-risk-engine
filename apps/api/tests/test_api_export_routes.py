@@ -4,8 +4,8 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 
 from src.api.routes.underwriting import get_risk_auditor, get_underwriting_repository
-from src.domain.repositories import InMemoryUnderwritingRepository
 from src.infrastructure.gemini_adapter import MockGeminiAuditor
+from src.infrastructure.repositories import InMemoryUnderwritingRepository
 from src.main import app
 
 

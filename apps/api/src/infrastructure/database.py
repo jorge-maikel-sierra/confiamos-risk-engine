@@ -77,6 +77,15 @@ async def init_db(target_engine: AsyncEngine | None = None) -> None:
             from sqlalchemy import text
 
             await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector;"))
+            await conn.execute(
+                text("ALTER TABLE credit_applications ADD COLUMN IF NOT EXISTS scorecard JSONB;")
+            )
+            await conn.execute(
+                text(
+                    "ALTER TABLE credit_applications ADD COLUMN IF NOT EXISTS "
+                    "historical_precedents JSONB;"
+                )
+            )
         await conn.run_sync(Base.metadata.create_all)
 
 

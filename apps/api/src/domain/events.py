@@ -61,6 +61,10 @@ class IEventPublisher(Protocol):
         """Publica el evento y retorna el ID único de entrega emitido por el broker."""
         ...
 
+    async def publish(self, event: CreditUnderwritingEvent) -> str:
+        """Alias para publicación de eventos."""
+        ...
+
 
 class EventBroadcaster:
     """Distribuidor asíncrono en memoria para streaming SSE hacia clientes web conectados."""
@@ -113,3 +117,7 @@ class MockEventPublisher:
             await self.broadcaster.broadcast(event)
         msg_id = f"mock-msg-{uuid.uuid4().hex[:8]}"
         return msg_id
+
+    async def publish(self, event: CreditUnderwritingEvent) -> str:
+        """Alias de publish_event para el caso de uso."""
+        return await self.publish_event(event)

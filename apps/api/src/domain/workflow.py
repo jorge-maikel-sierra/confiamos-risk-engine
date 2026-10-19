@@ -16,6 +16,7 @@ from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, START, StateGraph
 
 from src.domain.metrics import FinancialInput, evaluate_financial_health
+from src.domain.ports import IObservabilityTracker, RiskAuditorProtocol
 from src.domain.scoring import RegulatoryScorecardEngine
 from src.domain.state import CreditUnderwritingState
 from src.domain.vector_search import (
@@ -25,8 +26,6 @@ from src.domain.vector_search import (
     MockVectorSearchRepository,
     build_credit_profile_text,
 )
-from src.infrastructure.gemini_adapter import RiskAuditorProtocol
-from src.infrastructure.observability import IObservabilityTracker
 
 
 def create_underwriting_graph(

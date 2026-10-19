@@ -11,7 +11,9 @@ estructurada en un árbol jerárquico de spans:
 import hashlib
 import os
 import uuid
-from typing import Any, Protocol
+from typing import Any
+
+from src.domain.ports import IObservabilityTracker
 
 
 def to_otel_trace_id(raw_id: str) -> str:
@@ -20,65 +22,6 @@ def to_otel_trace_id(raw_id: str) -> str:
         return uuid.UUID(raw_id).hex
     except ValueError:
         return hashlib.md5(raw_id.encode("utf-8")).hexdigest()
-
-
-class IObservabilityTracker(Protocol):
-    """Protocolo abstracto para la observabilidad y trazabilidad de IA."""
-
-    def trace_start(
-        self,
-        application_id: str,
-        associated_id: str,
-        business_name: str,
-        requested_amount_usd: float,
-        term_months: int,
-    ) -> None:
-        """Inicia el contexto de la traza para una solicitud crediticia."""
-        ...
-
-    def record_span(
-        self,
-        application_id: str,
-        name: str,
-        input: Any,
-        output: Any,
-        as_type: str = "tool",
-    ) -> None:
-        """Registra una operación intermedia como span hijo (e.g. cálculo financiero)."""
-        ...
-
-    def record_generation(
-        self,
-        application_id: str,
-        model_name: str,
-        prompt: str,
-        output: dict[str, Any],
-        usage: dict[str, int] | None = None,
-        latency_ms: float = 0.0,
-    ) -> None:
-        """Registra la inferencia cualitativa realizada por Gemini."""
-        ...
-
-    def update_trace_output(
-        self,
-        application_id: str,
-        output: dict[str, Any],
-    ) -> None:
-        """Actualiza el output del span raíz al finalizar o pausar una etapa."""
-        ...
-
-    def record_human_score(
-        self,
-        application_id: str,
-        approved: bool,
-        notes: str,
-    ) -> None:
-        """Registra el dictamen humano como un score en Langfuse."""
-        ...
-
-    def flush(self) -> None:
-        """Fuerza el envío de eventos pendientes."""
-        ...
 
 
 class MockObservabilityTracker:

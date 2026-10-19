@@ -11,6 +11,7 @@
 2. **LA MATEMÁTICA NO VA EN EL PROMPT**: Toda fórmula financiera (DSCR, Liquidez, Runway) se calcula de forma determinística en nodos de Python puro. Los LLMs solo contextualizan y emiten dictamen cualitativo estructurado.
 3. **MÁQUINAS DE ESTADO CON LANGGRAPH**: Todo flujo de crédito se modela con un `StateGraph` de LangGraph fuertemente tipado. Prohibido usar cadenas abiertas o wrappers inflados de LangChain clásico.
 4. **SPEC-DRIVEN DEVELOPMENT (SDD)**: Queda terminantemente prohibido generar código o tests si no existe un archivo `.specs/XX-nombre.md` aprobado con diagramas Mermaid previos.
+5. **ARQUITECTURA HEXAGONAL PURA Y SOLID**: Queda terminantemente prohibido escribir código acoplando dominio con infraestructura. El dominio (`src/domain/`) solo define modelos y puertos puros. Toda lógica de orquestación vive en casos de uso de aplicación (`src/application/`), las dependencias se inyectan en el Composition Root (`src/api/container.py`), y los errores siguen RFC 7807 / RFC 9110.
 
 ---
 
@@ -49,6 +50,9 @@ Todo spec técnico debe contener:
   * Todo PR debe vincular explícitamente el Issue que resuelve con la palabra clave `Closes #<numero>`.
   * Todo PR debe contener un resumen ejecutivo de cambios, archivos modificados y evidencia de tests aprobados.
   * Todo PR debe aprobar los checks automáticos de CI (Ruff y Pytest) en GitHub Actions antes de ser mergeado.
+* **Estrategia de Integración Obligatoria (Merge Commit Clásico)**:
+  * Al fusionar pull requests se debe usar obligatoriamente el merge commit clásico (`gh pr merge <num> --merge` o `git merge --no-ff`).
+  * Prohibido el `squash merge` para preservar la bifurcación, las ramas y la historia visual en el grafo de Git.
 
 ---
 

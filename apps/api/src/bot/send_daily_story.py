@@ -268,6 +268,8 @@ async def dispatch_daily_story(
             state["current_day"] = target_day + 1
         save_state(state)
         print(f"✅ Día {target_day} enviado. Contador avanzado a Día {state['current_day']}.")
+    elif result.get("delivered"):
+        print(f"✅ Día {target_day} enviado exitosamente a Telegram.")
     elif result.get("status") == "dry_run":
         current = state.get("current_day", 1)
         print(f"ℹ️ Modo simulación (dry_run) para el Día {target_day}. Contador en {current}.")

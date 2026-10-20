@@ -92,6 +92,12 @@ async def init_db(target_engine: AsyncEngine | None = None) -> None:
                     "historical_precedents JSONB;"
                 )
             )
+            await conn.execute(
+                text(
+                    "ALTER TABLE credit_applications ADD COLUMN IF NOT EXISTS "
+                    "stress_test_results JSONB;"
+                )
+            )
 
 
 async def get_db_session() -> AsyncGenerator[AsyncSession, None]:

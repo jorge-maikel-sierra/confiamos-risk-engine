@@ -45,6 +45,7 @@ export interface UnderwritingRecord {
   ai_verdict: UnderwritingVerdict | null;
   scorecard?: CreditScorecardResult | null;
   historical_precedents?: HistoricalPrecedent[];
+  stress_test_results?: StressTestingAnalysis | null;
   human_approved: boolean | null;
   human_notes: string | null;
   errors: string[];
@@ -134,3 +135,44 @@ export interface CreditScorecardResult {
   breakdown: ScorecardBreakdown;
   regulatory_justification: string;
 }
+
+export type StressScenarioType =
+  | "BASE"
+  | "SALES_SHOCK_MILD"
+  | "SALES_SHOCK_MODERATE"
+  | "COST_SHOCK"
+  | "RATE_SHOCK"
+  | "COMBINED_SEVERE"
+  | "CUSTOM";
+
+export interface ScenarioStressResult {
+  scenario_type: StressScenarioType;
+  scenario_name: string;
+  description: string;
+  stressed_revenue: number;
+  stressed_costs: number;
+  stressed_ebitda: number;
+  stressed_debt_service: number;
+  stressed_dscr: number | null;
+  stressed_current_ratio: number | null;
+  base_rating: RiskRatingCategory;
+  stressed_rating: RiskRatingCategory;
+  rating_downgraded: boolean;
+  base_score: number;
+  stressed_score: number;
+  base_provision_usd: number;
+  stressed_provision_usd: number;
+  delta_provision_usd: number;
+  is_solvent: boolean;
+}
+
+export interface StressTestingAnalysis {
+  application_id: string;
+  executed_at: string;
+  base_scenario: ScenarioStressResult;
+  scenarios: ScenarioStressResult[];
+  breakeven_sales_drop_pct: number;
+  breakeven_tolerable: boolean;
+  resilience_summary: string;
+}
+

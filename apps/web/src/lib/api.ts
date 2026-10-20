@@ -3,6 +3,7 @@ import {
   FinancialExtractionResult,
   HumanReviewPayload,
   PaginatedUnderwritingList,
+  StressTestingAnalysis,
   UnderwritingRecord,
 } from "@/types/underwriting";
 
@@ -144,4 +145,48 @@ export async function uploadFinancialDocument(
 
   return res.json();
 }
+
+export async function fetchStressTestAnalysis(
+  id: string
+): Promise<StressTestingAnalysis> {
+  const res = await fetch(
+    `${BASE_URL}/underwritings/${encodeURIComponent(id)}/stress-test`,
+    { cache: "no-store" }
+  );
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.detail || "Error al obtener análisis de estrés");
+  }
+  return res.json();
+}
+
+export async function runStressTestSimulation(
+  id: string,
+  customScenario?: {
+    sales_shock_pct?: number;
+    opex_shock_pct?: number;
+    interest_rate_shock_bps?: number;
+  }
+): Promise<StressTestingAnalysis> {
+  const res = await fetch(
+    `${BASE_URL}/underwritings/${encodeURIComponent(id)}/stress-test`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(
+        customScenario ? { custom_scenario: customScenario } : {}
+      ),
+    }
+  );
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.detail || "Error al simular prueba de estrés");
+  }
+
+  return res.json();
+}
+
 

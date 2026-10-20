@@ -8,6 +8,7 @@ from typing import Any, Protocol
 
 from src.domain.metrics import FinancialHealthMetrics
 from src.domain.state import UnderwritingVerdict
+from src.domain.stress_testing import StressParameters, StressTestingAnalysis
 from src.domain.vector_search import HistoricalLoanPrecedent
 
 
@@ -85,3 +86,16 @@ class IObservabilityTracker(Protocol):
     def flush(self) -> None:
         """Fuerza el envío de eventos pendientes."""
         ...
+
+
+class StressTestingServicePort(Protocol):
+    """Puerto de dominio para la simulación y análisis de estrés financiero (SPEC-10)."""
+
+    async def execute_stress_test(
+        self,
+        application_id: str,
+        custom_scenario: StressParameters | None = None,
+    ) -> StressTestingAnalysis:
+        """Ejecuta la simulación completa de pruebas de estrés para el expediente."""
+        ...
+

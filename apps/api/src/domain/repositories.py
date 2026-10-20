@@ -58,3 +58,13 @@ class IUnderwritingRepository(ABC):
     ) -> dict[str, Any]:
         """Registra la intervención humana y marca la solicitud como completada."""
         ...
+
+    @abstractmethod
+    async def save_stress_test_results(
+        self,
+        application_id: str,
+        results: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Persiste los resultados del análisis de estrés financiero (SPEC-10)."""
+        ...
+

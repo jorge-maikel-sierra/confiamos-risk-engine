@@ -40,6 +40,7 @@ class InMemoryUnderwritingRepository(IUnderwritingRepository):
             "ai_verdict": None,
             "scorecard": None,
             "historical_precedents": [],
+            "stress_test_results": None,
             "human_approved": None,
             "human_notes": None,
         }
@@ -98,6 +99,18 @@ class InMemoryUnderwritingRepository(IUnderwritingRepository):
         record["current_step"] = current_step
         record["is_completed"] = True
         return record
+
+    async def save_stress_test_results(
+        self,
+        application_id: str,
+        results: dict[str, Any],
+    ) -> dict[str, Any]:
+        record = self._storage.get(application_id)
+        if not record:
+            raise KeyError(f"Solicitud {application_id} no encontrada en repositorio en memoria.")
+        record["stress_test_results"] = results
+        return record
+
 
 
 class PostgresUnderwritingRepository(IUnderwritingRepository):
@@ -201,3 +214,20 @@ class PostgresUnderwritingRepository(IUnderwritingRepository):
         await self.session.flush()
         await self.session.refresh(model)
         return model.to_dict()
+
+    async def save_stress_test_results(
+        self,
+        application_id: str,
+        results: dict[str, Any],
+    ) -> dict[str, Any]:
+        stmt = select(CreditApplicationModel).where(CreditApplicationModel.id == application_id)
+        result = await self.session.execute(stmt)
+        model = result.scalar_one_or_none()
+        if not model:
+            raise KeyError(f"Solicitud {application_id} no encontrada en base de datos.")
+
+        model.stress_test_results = results
+        await self.session.flush()
+        await self.session.refresh(model)
+        return model.to_dict()
+

@@ -29,6 +29,10 @@ from src.application.use_cases.start_underwriting import (
     StartUnderwritingCommand,
     StartUnderwritingUseCase,
 )
+from src.application.use_cases.stress_test_underwriting import (
+    GetStressTestAnalysisUseCase,
+    StressTestUnderwritingUseCase,
+)
 from src.application.use_cases.submit_human_review import (
     SubmitHumanReviewCommand,
     SubmitHumanReviewUseCase,
@@ -52,4 +56,6 @@ __all__ = [
     "VerifyIntegritySealUseCase",
     "IngestDocumentCommand",
     "IngestFinancialDocumentUseCase",
+    "StressTestUnderwritingUseCase",
+    "GetStressTestAnalysisUseCase",
 ]

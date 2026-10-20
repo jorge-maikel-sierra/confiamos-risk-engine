@@ -23,10 +23,12 @@ from fastapi.responses import StreamingResponse
 from src.api.container import (
     get_export_dossier_pdf_use_case,
     get_export_financial_excel_use_case,
+    get_get_stress_test_analysis_use_case,
     get_ingest_document_use_case,
     get_list_underwritings_use_case,
     get_risk_auditor,
     get_start_underwriting_use_case,
+    get_stress_test_underwriting_use_case,
     get_submit_human_review_use_case,
     get_underwriting_by_id_use_case,
     get_underwriting_repository,
@@ -37,6 +39,7 @@ from src.api.schemas import (
     HumanReviewRequestSchema,
     MetricsSummarySchema,
     PaginatedUnderwritingListSchema,
+    StressTestRequestSchema,
     UnderwriteRequestSchema,
     UnderwriteResponseSchema,
 )
@@ -58,12 +61,17 @@ from src.application.use_cases.start_underwriting import (
     StartUnderwritingCommand,
     StartUnderwritingUseCase,
 )
+from src.application.use_cases.stress_test_underwriting import (
+    GetStressTestAnalysisUseCase,
+    StressTestUnderwritingUseCase,
+)
 from src.application.use_cases.submit_human_review import (
     SubmitHumanReviewCommand,
     SubmitHumanReviewUseCase,
 )
 from src.domain.document_ingestion import FinancialExtractionResult
 from src.domain.scoring import CreditScorecardResult
+from src.domain.stress_testing import StressTestingAnalysis
 from src.infrastructure.aws_sns_adapter import global_event_broadcaster
 from src.infrastructure.observability import get_observability_tracker
 
@@ -133,6 +141,14 @@ def _format_underwrite_response(app_id: str, values: dict[str, Any]) -> Underwri
         elif isinstance(raw_scorecard, dict):
             scorecard_res = CreditScorecardResult(**raw_scorecard)
 
+    stress_res = None
+    raw_stress = values.get("stress_test_results")
+    if raw_stress:
+        if isinstance(raw_stress, StressTestingAnalysis):
+            stress_res = raw_stress
+        elif isinstance(raw_stress, dict):
+            stress_res = StressTestingAnalysis(**raw_stress)
+
     return UnderwriteResponseSchema(
         application_id=app_id,
         associated_id=values.get("associated_id", ""),
@@ -144,6 +160,7 @@ def _format_underwrite_response(app_id: str, values: dict[str, Any]) -> Underwri
         ai_verdict=values.get("ai_verdict"),
         scorecard=scorecard_res,
         historical_precedents=historical_precedents,
+        stress_test_results=stress_res,
         human_approved=values.get("human_approved"),
         human_notes=values.get("human_notes"),
         errors=values.get("errors", []),
@@ -363,3 +380,36 @@ async def verify_seal(
         "is_authentic": result.is_authentic,
         "verified_at": result.verified_at,
     }
+
+
+@router.post(
+    "/{application_id}/stress-test",
+    response_model=StressTestingAnalysis,
+    summary="Simular pruebas de estrés financiero y sensibilidad",
+    description="Calcula el impacto determinístico de choques de ventas, costos y tasa de interés (SPEC-10).",
+)
+async def run_stress_test(
+    application_id: str,
+    payload: StressTestRequestSchema | None = None,
+    use_case: Annotated[
+        StressTestUnderwritingUseCase, Depends(get_stress_test_underwriting_use_case)
+    ] = None,
+) -> StressTestingAnalysis:
+    custom = payload.custom_scenario if payload else None
+    return await use_case.execute(application_id=application_id, custom_scenario=custom)
+
+
+@router.get(
+    "/{application_id}/stress-test",
+    response_model=StressTestingAnalysis,
+    summary="Consultar análisis de estrés financiero",
+    description="Retorna el análisis de estrés financiero previamente simulado o lo calcula on-demand.",
+)
+async def get_stress_test(
+    application_id: str,
+    use_case: Annotated[
+        GetStressTestAnalysisUseCase, Depends(get_get_stress_test_analysis_use_case)
+    ] = None,
+) -> StressTestingAnalysis:
+    return await use_case.execute(application_id=application_id)
+

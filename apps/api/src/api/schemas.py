@@ -4,6 +4,7 @@ from pydantic import BaseModel, Field
 
 from src.domain.scoring import CreditScorecardResult
 from src.domain.state import UnderwritingVerdict
+from src.domain.stress_testing import StressParameters, StressTestingAnalysis
 
 
 class RawFinancialsSchema(BaseModel):
@@ -73,6 +74,7 @@ class UnderwriteResponseSchema(BaseModel):
     ai_verdict: UnderwritingVerdict | None = None
     scorecard: CreditScorecardResult | None = None
     historical_precedents: list[HistoricalPrecedentSchema] = Field(default_factory=list)
+    stress_test_results: StressTestingAnalysis | None = None
     human_approved: bool | None = None
     human_notes: str | None = None
     errors: list[str] = Field(default_factory=list)
@@ -96,3 +98,12 @@ class PaginatedUnderwritingListSchema(BaseModel):
     total: int
     limit: int
     offset: int
+
+
+class StressTestRequestSchema(BaseModel):
+    """Payload opcional para simular un escenario de estrés personalizado (SPEC-10)."""
+
+    custom_scenario: StressParameters | None = Field(
+        default=None, description="Parámetros de choque personalizados definidos por el oficial"
+    )
+

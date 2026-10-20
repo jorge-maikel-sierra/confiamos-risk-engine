@@ -20,6 +20,7 @@ import {
   ShieldCheck,
   CheckCircle2,
   Award,
+  Activity,
 } from "lucide-react";
 import {
   fetchUnderwritingById,
@@ -34,6 +35,7 @@ import { VerdictBadge } from "@/components/VerdictBadge";
 import { AnomalyAlertList } from "@/components/AnomalyAlertList";
 import { HumanReviewForm } from "@/components/HumanReviewForm";
 import { ScorecardCard } from "@/components/ScorecardCard";
+import { StressTestingSimulator } from "@/components/StressTestingSimulator";
 import { formatCurrency, formatRatio } from "@/lib/utils";
 
 export default function UnderwritingDetailPage() {
@@ -394,10 +396,24 @@ export default function UnderwritingDetailPage() {
         <ScorecardCard scorecard={record.scorecard} />
       </section>
 
+      {/* 6. Simulador de Pruebas de Estrés Financiero y Sensibilidad (SPEC-10) */}
+      <section className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-base font-bold text-slate-900 tracking-tight flex items-center gap-2">
+            <Activity className="w-5 h-5 text-indigo-600" />
+            <span>6. Pruebas de Estrés Financiero y Análisis de Sensibilidad (SPEC-10)</span>
+          </h2>
+          <span className="text-xs font-semibold text-slate-500 bg-slate-100 px-3 py-1 rounded-full border border-slate-200">
+            Norma SARO / Basilea
+          </span>
+        </div>
+        <StressTestingSimulator applicationId={record.application_id} />
+      </section>
+
       {/* Formulario de Decisión Humana (Human-in-the-loop) */}
       <section className="space-y-3">
         <h2 className="text-base font-bold text-slate-900 tracking-tight">
-          6. Resolución Definitiva de Comité
+          7. Resolución Definitiva de Comité
         </h2>
         <HumanReviewForm
           applicationId={record.application_id}
@@ -408,12 +424,12 @@ export default function UnderwritingDetailPage() {
         />
       </section>
 
-      {/* 7. Sellado Criptográfico e Integridad de Datos (SPEC-07) */}
+      {/* 8. Sellado Criptográfico e Integridad de Datos (SPEC-07) */}
       <section className="space-y-3">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <h2 className="text-base font-bold text-slate-900 tracking-tight flex items-center gap-2">
             <ShieldCheck className="w-5 h-5 text-blue-600" />
-            <span>7. Auditoría y Sellado Criptográfico de Integridad (SHA-256)</span>
+            <span>8. Auditoría y Sellado Criptográfico de Integridad (SHA-256)</span>
           </h2>
           <button
             onClick={handleVerifySeal}

@@ -23,6 +23,10 @@ from src.application.use_cases.get_underwriting import (
 )
 from src.application.use_cases.ingest_document import IngestFinancialDocumentUseCase
 from src.application.use_cases.start_underwriting import StartUnderwritingUseCase
+from src.application.use_cases.stress_test_underwriting import (
+    GetStressTestAnalysisUseCase,
+    StressTestUnderwritingUseCase,
+)
 from src.application.use_cases.submit_human_review import SubmitHumanReviewUseCase
 from src.domain.events import IEventPublisher
 from src.domain.ports import IObservabilityTracker, RiskAuditorProtocol
@@ -51,21 +55,30 @@ _fallback_vector_repo = MockVectorSearchRepository()
 
 
 async def get_optional_db_session() -> AsyncGenerator[AsyncSession | None, None]:
-    """Generador seguro de sesión de base de datos que no falla en testing offline."""
+    """Generador seguro de sesión de base de datos que no falla en testing offline o sin DB local."""
     if os.getenv("TESTING") == "true":
         yield None
         return
 
+    session = None
     try:
-        async with async_session_factory() as session:
-            try:
-                yield session
-                await session.commit()
-            except Exception:
-                await session.rollback()
-                raise
-    except (ConnectionRefusedError, OSError):
+        session = async_session_factory()
+        await session.connection()
+    except Exception:
+        if session is not None:
+            await session.close()
         yield None
+        return
+
+    try:
+        yield session
+        await session.commit()
+    except Exception:
+        await session.rollback()
+        raise
+    finally:
+        await session.close()
+
 
 
 def get_underwriting_repository(
@@ -201,3 +214,19 @@ def get_ingest_document_use_case(
 ) -> IngestFinancialDocumentUseCase:
     """Construye IngestFinancialDocumentUseCase."""
     return IngestFinancialDocumentUseCase(risk_auditor=auditor)
+
+
+def get_stress_test_underwriting_use_case(
+    repo: Annotated[IUnderwritingRepository, Depends(get_underwriting_repository)],
+) -> StressTestUnderwritingUseCase:
+    """Construye StressTestUnderwritingUseCase (SPEC-10)."""
+    return StressTestUnderwritingUseCase(repository=repo)
+
+
+def get_get_stress_test_analysis_use_case(
+    repo: Annotated[IUnderwritingRepository, Depends(get_underwriting_repository)],
+    simulator: Annotated[StressTestUnderwritingUseCase, Depends(get_stress_test_underwriting_use_case)],
+) -> GetStressTestAnalysisUseCase:
+    """Construye GetStressTestAnalysisUseCase (SPEC-10)."""
+    return GetStressTestAnalysisUseCase(repository=repo, simulator_use_case=simulator)
+

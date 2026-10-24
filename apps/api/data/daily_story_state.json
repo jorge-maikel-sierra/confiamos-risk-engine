@@ -1,9 +1,9 @@
 {
-  "current_day": 5,
+  "current_day": 6,
   "total_days": 100,
   "project_name": "Confiamos Risk Engine (CRE)",
   "client": "Cooperativa Confiamos",
-  "last_sent_at": "2026-10-23T13:08:39.400450+00:00",
+  "last_sent_at": "2026-10-24T13:07:31.363607+00:00",
   "history": [
     {
       "day_number": 1,
@@ -28,6 +28,11 @@
     {
       "day_number": 4,
       "sent_at": "2026-10-23T13:08:39.400450+00:00",
+      "status": "delivered"
+    },
+    {
+      "day_number": 5,
+      "sent_at": "2026-10-24T13:07:31.363607+00:00",
       "status": "delivered"
     }
   ]

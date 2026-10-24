@@ -22,6 +22,10 @@ from src.application.use_cases.get_underwriting import (
     ListUnderwritingsUseCase,
 )
 from src.application.use_cases.ingest_document import IngestFinancialDocumentUseCase
+from src.application.use_cases.manage_collaterals import (
+    GetCollateralAnalysisUseCase,
+    RegisterCollateralsUseCase,
+)
 from src.application.use_cases.start_underwriting import StartUnderwritingUseCase
 from src.application.use_cases.stress_test_underwriting import (
     GetStressTestAnalysisUseCase,
@@ -229,4 +233,20 @@ def get_get_stress_test_analysis_use_case(
 ) -> GetStressTestAnalysisUseCase:
     """Construye GetStressTestAnalysisUseCase (SPEC-10)."""
     return GetStressTestAnalysisUseCase(repository=repo, simulator_use_case=simulator)
+
+
+def get_register_collaterals_use_case(
+    repo: Annotated[IUnderwritingRepository, Depends(get_underwriting_repository)],
+) -> RegisterCollateralsUseCase:
+    """Construye RegisterCollateralsUseCase (SPEC-11)."""
+    return RegisterCollateralsUseCase(repository=repo)
+
+
+def get_get_collateral_analysis_use_case(
+    repo: Annotated[IUnderwritingRepository, Depends(get_underwriting_repository)],
+    register_use_case: Annotated[RegisterCollateralsUseCase, Depends(get_register_collaterals_use_case)],
+) -> GetCollateralAnalysisUseCase:
+    """Construye GetCollateralAnalysisUseCase (SPEC-11)."""
+    return GetCollateralAnalysisUseCase(repository=repo, register_use_case=register_use_case)
+
 

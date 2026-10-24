@@ -1,9 +1,11 @@
 import {
+  CollateralItemInput,
   CreateUnderwritingPayload,
   FinancialExtractionResult,
   HumanReviewPayload,
   PaginatedUnderwritingList,
   StressTestingAnalysis,
+  UnderwritingCollateralAnalysis,
   UnderwritingRecord,
 } from "@/types/underwriting";
 
@@ -184,6 +186,43 @@ export async function runStressTestSimulation(
   if (!res.ok) {
     const errorData = await res.json().catch(() => ({}));
     throw new Error(errorData.detail || "Error al simular prueba de estrés");
+  }
+
+  return res.json();
+}
+
+export async function fetchCollateralAnalysis(
+  id: string
+): Promise<UnderwritingCollateralAnalysis> {
+  const res = await fetch(
+    `${BASE_URL}/underwritings/${encodeURIComponent(id)}/collaterals`,
+    { cache: "no-store" }
+  );
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.detail || "Error al obtener análisis de garantías");
+  }
+  return res.json();
+}
+
+export async function registerCollaterals(
+  id: string,
+  collaterals: CollateralItemInput[]
+): Promise<UnderwritingCollateralAnalysis> {
+  const res = await fetch(
+    `${BASE_URL}/underwritings/${encodeURIComponent(id)}/collaterals`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ collaterals }),
+    }
+  );
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.detail || "Error al registrar garantías");
   }
 
   return res.json();

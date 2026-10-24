@@ -68,3 +68,13 @@ class IUnderwritingRepository(ABC):
         """Persiste los resultados del análisis de estrés financiero (SPEC-10)."""
         ...
 
+    @abstractmethod
+    async def save_collateral_analysis(
+        self,
+        application_id: str,
+        analysis: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Persiste la valuación de garantías y deducción de provisiones netas (SPEC-11)."""
+        ...
+
+

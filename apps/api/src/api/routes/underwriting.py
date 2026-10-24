@@ -23,9 +23,11 @@ from fastapi.responses import StreamingResponse
 from src.api.container import (
     get_export_dossier_pdf_use_case,
     get_export_financial_excel_use_case,
+    get_get_collateral_analysis_use_case,
     get_get_stress_test_analysis_use_case,
     get_ingest_document_use_case,
     get_list_underwritings_use_case,
+    get_register_collaterals_use_case,
     get_risk_auditor,
     get_start_underwriting_use_case,
     get_stress_test_underwriting_use_case,
@@ -39,6 +41,7 @@ from src.api.schemas import (
     HumanReviewRequestSchema,
     MetricsSummarySchema,
     PaginatedUnderwritingListSchema,
+    RegisterCollateralsRequestSchema,
     StressTestRequestSchema,
     UnderwriteRequestSchema,
     UnderwriteResponseSchema,
@@ -57,6 +60,10 @@ from src.application.use_cases.ingest_document import (
     IngestDocumentCommand,
     IngestFinancialDocumentUseCase,
 )
+from src.application.use_cases.manage_collaterals import (
+    GetCollateralAnalysisUseCase,
+    RegisterCollateralsUseCase,
+)
 from src.application.use_cases.start_underwriting import (
     StartUnderwritingCommand,
     StartUnderwritingUseCase,
@@ -69,6 +76,7 @@ from src.application.use_cases.submit_human_review import (
     SubmitHumanReviewCommand,
     SubmitHumanReviewUseCase,
 )
+from src.domain.collaterals import UnderwritingCollateralAnalysis
 from src.domain.document_ingestion import FinancialExtractionResult
 from src.domain.scoring import CreditScorecardResult
 from src.domain.stress_testing import StressTestingAnalysis
@@ -149,6 +157,14 @@ def _format_underwrite_response(app_id: str, values: dict[str, Any]) -> Underwri
         elif isinstance(raw_stress, dict):
             stress_res = StressTestingAnalysis(**raw_stress)
 
+    collateral_res = None
+    raw_collateral = values.get("collateral_analysis")
+    if raw_collateral:
+        if isinstance(raw_collateral, UnderwritingCollateralAnalysis):
+            collateral_res = raw_collateral
+        elif isinstance(raw_collateral, dict):
+            collateral_res = UnderwritingCollateralAnalysis(**raw_collateral)
+
     return UnderwriteResponseSchema(
         application_id=app_id,
         associated_id=values.get("associated_id", ""),
@@ -161,6 +177,7 @@ def _format_underwrite_response(app_id: str, values: dict[str, Any]) -> Underwri
         scorecard=scorecard_res,
         historical_precedents=historical_precedents,
         stress_test_results=stress_res,
+        collateral_analysis=collateral_res,
         human_approved=values.get("human_approved"),
         human_notes=values.get("human_notes"),
         errors=values.get("errors", []),
@@ -412,4 +429,36 @@ async def get_stress_test(
     ] = None,
 ) -> StressTestingAnalysis:
     return await use_case.execute(application_id=application_id)
+
+
+@router.post(
+    "/{application_id}/collaterals",
+    response_model=UnderwritingCollateralAnalysis,
+    summary="Registrar y valuar garantías y calcular LTV",
+    description="Valúa colaterales con matriz de haircuts admisibles, calcula LTV y provisiones netas (SPEC-11).",
+)
+async def register_collaterals(
+    application_id: str,
+    payload: RegisterCollateralsRequestSchema,
+    use_case: Annotated[
+        RegisterCollateralsUseCase, Depends(get_register_collaterals_use_case)
+    ],
+) -> UnderwritingCollateralAnalysis:
+    return await use_case.execute(application_id=application_id, items=payload.collaterals)
+
+
+@router.get(
+    "/{application_id}/collaterals",
+    response_model=UnderwritingCollateralAnalysis,
+    summary="Consultar análisis de valuación de garantías y LTV",
+    description="Retorna el análisis de colaterales registrado o valuación por defecto (SPEC-11).",
+)
+async def get_collateral_analysis(
+    application_id: str,
+    use_case: Annotated[
+        GetCollateralAnalysisUseCase, Depends(get_get_collateral_analysis_use_case)
+    ],
+) -> UnderwritingCollateralAnalysis:
+    return await use_case.execute(application_id=application_id)
+
 

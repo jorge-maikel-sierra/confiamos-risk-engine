@@ -46,6 +46,7 @@ export interface UnderwritingRecord {
   scorecard?: CreditScorecardResult | null;
   historical_precedents?: HistoricalPrecedent[];
   stress_test_results?: StressTestingAnalysis | null;
+  collateral_analysis?: UnderwritingCollateralAnalysis | null;
   human_approved: boolean | null;
   human_notes: string | null;
   errors: string[];
@@ -175,4 +176,50 @@ export interface StressTestingAnalysis {
   breakeven_tolerable: boolean;
   resilience_summary: string;
 }
+
+export type CollateralType =
+  | "CDAT_DEPOSIT"
+  | "FNG_GUARANTEE"
+  | "REAL_ESTATE_URBAN"
+  | "REAL_ESTATE_RURAL"
+  | "VEHICLE_COMMERCIAL"
+  | "INDUSTRIAL_MACHINERY"
+  | "PERSONAL_GUARANTEE";
+
+export interface CollateralItemInput {
+  collateral_type: CollateralType;
+  description: string;
+  commercial_appraisal_usd: number;
+}
+
+export interface CollateralItem {
+  id: string;
+  collateral_type: CollateralType;
+  description: string;
+  commercial_appraisal_usd: number;
+  haircut_percentage: number;
+  admissible_value_usd: number;
+  is_statutory_admissible: boolean;
+}
+
+export interface UnderwritingCollateralAnalysis {
+  application_id: string;
+  evaluated_at: string;
+  items: CollateralItem[];
+  total_appraisal_usd: number;
+  total_admissible_usd: number;
+  requested_amount_usd: number;
+  ltv_percentage: number | null;
+  ltv_status: "HEALTHY" | "WARNING" | "CRITICAL" | "UNSECURED";
+  collateral_coverage_ratio: number;
+  net_exposure_at_default_usd: number;
+  rating_category: string;
+  provision_rate_percentage: number;
+  gross_provision_usd: number;
+  net_provision_usd: number;
+  capital_relief_usd: number;
+  is_fully_secured: boolean;
+  recommendation_notes: string;
+}
+
 

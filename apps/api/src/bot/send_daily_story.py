@@ -178,6 +178,21 @@ STORIES_CATALOG: dict[int, dict[str, Any]] = {
         ),
         "hashtags": ["#StressTesting", "#RiskManagement", "#Fintech"],
     },
+    11: {
+        "hook": (
+            "¿Qué pasa si un crédito en Categoría B o C entra en mora? La cooperativa no puede "
+            "depender solo de la buena fe del asociado; necesita garantías ejecutables."
+        ),
+        "conflict": (
+            "Los avalúos comerciales se degradan en remates judiciales y la normativa bancaria no "
+            "permite computar el 100% del colateral como cobertura directa."
+        ),
+        "solution": (
+            "Implementamos el motor de valuación de colaterales admisibles y LTV con haircuts "
+            "normativos (SPEC-11), recalculando la provisión neta y liberando capital patrimonial."
+        ),
+        "hashtags": ["#CollateralManagement", "#RiskMitigation", "#Fintech", "#CreditRisk"],
+    },
 }
 
 

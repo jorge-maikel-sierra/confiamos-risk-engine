@@ -2,6 +2,7 @@
 
 from pydantic import BaseModel, Field
 
+from src.domain.collaterals import CollateralItemInput, UnderwritingCollateralAnalysis
 from src.domain.scoring import CreditScorecardResult
 from src.domain.state import UnderwritingVerdict
 from src.domain.stress_testing import StressParameters, StressTestingAnalysis
@@ -75,6 +76,7 @@ class UnderwriteResponseSchema(BaseModel):
     scorecard: CreditScorecardResult | None = None
     historical_precedents: list[HistoricalPrecedentSchema] = Field(default_factory=list)
     stress_test_results: StressTestingAnalysis | None = None
+    collateral_analysis: UnderwritingCollateralAnalysis | None = None
     human_approved: bool | None = None
     human_notes: str | None = None
     errors: list[str] = Field(default_factory=list)
@@ -106,4 +108,13 @@ class StressTestRequestSchema(BaseModel):
     custom_scenario: StressParameters | None = Field(
         default=None, description="Parámetros de choque personalizados definidos por el oficial"
     )
+
+
+class RegisterCollateralsRequestSchema(BaseModel):
+    """Payload para registrar y valuar colaterales de una solicitud (SPEC-11)."""
+
+    collaterals: list[CollateralItemInput] = Field(
+        default_factory=list, description="Lista de bienes o títulos aportados en garantía"
+    )
+
 

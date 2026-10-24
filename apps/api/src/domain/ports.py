@@ -6,6 +6,7 @@ El dominio NO importa nada de infraestructura; toda dependencia apunta hacia ade
 
 from typing import Any, Protocol
 
+from src.domain.collaterals import CollateralItemInput, UnderwritingCollateralAnalysis
 from src.domain.metrics import FinancialHealthMetrics
 from src.domain.state import UnderwritingVerdict
 from src.domain.stress_testing import StressParameters, StressTestingAnalysis
@@ -98,4 +99,24 @@ class StressTestingServicePort(Protocol):
     ) -> StressTestingAnalysis:
         """Ejecuta la simulación completa de pruebas de estrés para el expediente."""
         ...
+
+
+class CollateralServicePort(Protocol):
+    """Puerto de dominio para la valuación y mitigación de garantías y LTV (SPEC-11)."""
+
+    async def register_collaterals(
+        self,
+        application_id: str,
+        collaterals: list[CollateralItemInput],
+    ) -> UnderwritingCollateralAnalysis:
+        """Registra y evalúa la lista de colaterales aportados por el asociado."""
+        ...
+
+    async def get_collateral_analysis(
+        self,
+        application_id: str,
+    ) -> UnderwritingCollateralAnalysis:
+        """Recupera el análisis de garantías y LTV actual del expediente."""
+        ...
+
 

@@ -41,6 +41,7 @@ class InMemoryUnderwritingRepository(IUnderwritingRepository):
             "scorecard": None,
             "historical_precedents": [],
             "stress_test_results": None,
+            "collateral_analysis": None,
             "human_approved": None,
             "human_notes": None,
         }
@@ -110,6 +111,18 @@ class InMemoryUnderwritingRepository(IUnderwritingRepository):
             raise KeyError(f"Solicitud {application_id} no encontrada en repositorio en memoria.")
         record["stress_test_results"] = results
         return record
+
+    async def save_collateral_analysis(
+        self,
+        application_id: str,
+        analysis: dict[str, Any],
+    ) -> dict[str, Any]:
+        record = self._storage.get(application_id)
+        if not record:
+            raise KeyError(f"Solicitud {application_id} no encontrada en repositorio en memoria.")
+        record["collateral_analysis"] = analysis
+        return record
+
 
 
 
@@ -230,4 +243,21 @@ class PostgresUnderwritingRepository(IUnderwritingRepository):
         await self.session.flush()
         await self.session.refresh(model)
         return model.to_dict()
+
+    async def save_collateral_analysis(
+        self,
+        application_id: str,
+        analysis: dict[str, Any],
+    ) -> dict[str, Any]:
+        stmt = select(CreditApplicationModel).where(CreditApplicationModel.id == application_id)
+        result = await self.session.execute(stmt)
+        model = result.scalar_one_or_none()
+        if not model:
+            raise KeyError(f"Solicitud {application_id} no encontrada en base de datos.")
+
+        model.collateral_analysis = analysis
+        await self.session.flush()
+        await self.session.refresh(model)
+        return model.to_dict()
+
 

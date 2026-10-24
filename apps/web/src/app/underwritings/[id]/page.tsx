@@ -21,6 +21,7 @@ import {
   CheckCircle2,
   Award,
   Activity,
+  Scale,
 } from "lucide-react";
 import {
   fetchUnderwritingById,
@@ -36,6 +37,7 @@ import { AnomalyAlertList } from "@/components/AnomalyAlertList";
 import { HumanReviewForm } from "@/components/HumanReviewForm";
 import { ScorecardCard } from "@/components/ScorecardCard";
 import { StressTestingSimulator } from "@/components/StressTestingSimulator";
+import { CollateralValuationCard } from "@/components/CollateralValuationCard";
 import { formatCurrency, formatRatio } from "@/lib/utils";
 
 export default function UnderwritingDetailPage() {
@@ -410,10 +412,27 @@ export default function UnderwritingDetailPage() {
         <StressTestingSimulator applicationId={record.application_id} />
       </section>
 
+      {/* 7. Motor de Valuación de Garantías, LTV y Provisiones Netas (SPEC-11) */}
+      <section className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-base font-bold text-slate-900 tracking-tight flex items-center gap-2">
+            <Scale className="w-5 h-5 text-emerald-600" />
+            <span>7. Valuación de Garantías, LTV y Provisiones Netas (SPEC-11)</span>
+          </h2>
+          <span className="text-xs font-semibold text-slate-500 bg-slate-100 px-3 py-1 rounded-full border border-slate-200">
+            Haircuts Regulatorios & Mitigantes
+          </span>
+        </div>
+        <CollateralValuationCard
+          applicationId={record.application_id}
+          initialAnalysis={record.collateral_analysis}
+        />
+      </section>
+
       {/* Formulario de Decisión Humana (Human-in-the-loop) */}
       <section className="space-y-3">
         <h2 className="text-base font-bold text-slate-900 tracking-tight">
-          7. Resolución Definitiva de Comité
+          8. Resolución Definitiva de Comité
         </h2>
         <HumanReviewForm
           applicationId={record.application_id}
@@ -424,12 +443,12 @@ export default function UnderwritingDetailPage() {
         />
       </section>
 
-      {/* 8. Sellado Criptográfico e Integridad de Datos (SPEC-07) */}
+      {/* 9. Sellado Criptográfico e Integridad de Datos (SPEC-07) */}
       <section className="space-y-3">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <h2 className="text-base font-bold text-slate-900 tracking-tight flex items-center gap-2">
             <ShieldCheck className="w-5 h-5 text-blue-600" />
-            <span>8. Auditoría y Sellado Criptográfico de Integridad (SHA-256)</span>
+            <span>9. Auditoría y Sellado Criptográfico de Integridad (SHA-256)</span>
           </h2>
           <button
             onClick={handleVerifySeal}

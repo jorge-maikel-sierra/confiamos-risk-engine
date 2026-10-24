@@ -25,6 +25,10 @@ from src.application.use_cases.ingest_document import (
     IngestDocumentCommand,
     IngestFinancialDocumentUseCase,
 )
+from src.application.use_cases.manage_collaterals import (
+    GetCollateralAnalysisUseCase,
+    RegisterCollateralsUseCase,
+)
 from src.application.use_cases.start_underwriting import (
     StartUnderwritingCommand,
     StartUnderwritingUseCase,
@@ -58,4 +62,6 @@ __all__ = [
     "IngestFinancialDocumentUseCase",
     "StressTestUnderwritingUseCase",
     "GetStressTestAnalysisUseCase",
+    "RegisterCollateralsUseCase",
+    "GetCollateralAnalysisUseCase",
 ]

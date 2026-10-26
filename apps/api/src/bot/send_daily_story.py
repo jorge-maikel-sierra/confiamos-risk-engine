@@ -193,6 +193,21 @@ STORIES_CATALOG: dict[int, dict[str, Any]] = {
         ),
         "hashtags": ["#CollateralManagement", "#RiskMitigation", "#Fintech", "#CreditRisk"],
     },
+    12: {
+        "hook": (
+            "Cobrar la misma tasa de interés a todos los asociados destruye la cooperativa: "
+            "subsidia al riesgoso y expulsa al buen pagador a la banca comercial."
+        ),
+        "conflict": (
+            "Fijar precios a ojo o con tasas fijas ignora la pérdida esperada (PD * LGD) y "
+            "corre el peligro de sobrepasar el tope legal de usura de la Superintendencia."
+        ),
+        "solution": (
+            "Desarrollamos el motor de Risk-Based Pricing (RBP) y RAROC (SPEC-12), sumando costo de "
+            "fondeo, OPEX y prima de riesgo, con generador de amortizaciones Francesa y Alemana."
+        ),
+        "hashtags": ["#RiskBasedPricing", "#RAROC", "#CreditRisk", "#FintechArchitecture"],
+    },
 }
 
 

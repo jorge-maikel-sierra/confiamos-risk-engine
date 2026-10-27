@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   AlertTriangle,
   Building2,
@@ -132,7 +132,7 @@ export function CollateralValuationCard({
   const [newDescription, setNewDescription] = useState("");
   const [newAppraisal, setNewAppraisal] = useState<number>(50000);
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -143,13 +143,13 @@ export function CollateralValuationCard({
     } finally {
       setLoading(false);
     }
-  };
+  }, [applicationId]);
 
   useEffect(() => {
     if (!initialAnalysis) {
       loadData();
     }
-  }, [applicationId]);
+  }, [initialAnalysis, loadData]);
 
   const handleAddCollateral = async (e: React.FormEvent) => {
     e.preventDefault();

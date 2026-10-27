@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   AlertCircle,
   AlertTriangle,
@@ -52,7 +52,7 @@ export function PricingAmortizationCard({
   );
   const [showFullSchedule, setShowFullSchedule] = useState(false);
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -65,13 +65,13 @@ export function PricingAmortizationCard({
     } finally {
       setLoading(false);
     }
-  };
+  }, [applicationId]);
 
   useEffect(() => {
     if (!initialPricing) {
       loadData();
     }
-  }, [applicationId]);
+  }, [initialPricing, loadData]);
 
   const handleRecalculate = async (systemToUse?: AmortizationSystem) => {
     try {
@@ -400,7 +400,7 @@ export function PricingAmortizationCard({
           </table>
           {!showFullSchedule && pricing.amortization_schedule.length > 6 && (
             <div className="p-2.5 bg-slate-50 text-center text-slate-500 text-[11px] font-semibold border-t border-slate-200">
-              Mostrando las primeras 6 cuotas de {pricing.amortization_schedule.length}. Hacé clic en "Ver Tabla Completa" para inspeccionar todos los meses.
+              Mostrando las primeras 6 cuotas de {pricing.amortization_schedule.length}. Hacé clic en &quot;Ver Tabla Completa&quot; para inspeccionar todos los meses.
             </div>
           )}
         </div>

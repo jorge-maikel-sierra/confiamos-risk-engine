@@ -1,9 +1,11 @@
 import {
+  AmortizationSystem,
   CollateralItemInput,
   CreateUnderwritingPayload,
   FinancialExtractionResult,
   HumanReviewPayload,
   PaginatedUnderwritingList,
+  PricingProposal,
   StressTestingAnalysis,
   UnderwritingCollateralAnalysis,
   UnderwritingRecord,
@@ -223,6 +225,45 @@ export async function registerCollaterals(
   if (!res.ok) {
     const errorData = await res.json().catch(() => ({}));
     throw new Error(errorData.detail || "Error al registrar garantías");
+  }
+
+  return res.json();
+}
+
+export async function fetchPricingProposal(id: string): Promise<PricingProposal> {
+  const res = await fetch(
+    `${BASE_URL}/underwritings/${encodeURIComponent(id)}/pricing`,
+    { cache: "no-store" }
+  );
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.detail || "Error al obtener propuesta de pricing");
+  }
+  return res.json();
+}
+
+export async function generatePricingProposal(
+  id: string,
+  options?: {
+    amortization_system?: AmortizationSystem;
+    term_months_override?: number;
+    insurance_rate_monthly?: number;
+  }
+): Promise<PricingProposal> {
+  const res = await fetch(
+    `${BASE_URL}/underwritings/${encodeURIComponent(id)}/pricing`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(options || {}),
+    }
+  );
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.detail || "Error al calcular propuesta de pricing");
   }
 
   return res.json();

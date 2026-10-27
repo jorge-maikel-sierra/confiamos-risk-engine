@@ -3,6 +3,7 @@
 from pydantic import BaseModel, Field
 
 from src.domain.collaterals import CollateralItemInput, UnderwritingCollateralAnalysis
+from src.domain.pricing import AmortizationSystem, PricingProposal
 from src.domain.scoring import CreditScorecardResult
 from src.domain.state import UnderwritingVerdict
 from src.domain.stress_testing import StressParameters, StressTestingAnalysis
@@ -77,6 +78,7 @@ class UnderwriteResponseSchema(BaseModel):
     historical_precedents: list[HistoricalPrecedentSchema] = Field(default_factory=list)
     stress_test_results: StressTestingAnalysis | None = None
     collateral_analysis: UnderwritingCollateralAnalysis | None = None
+    pricing_proposal: PricingProposal | None = None
     human_approved: bool | None = None
     human_notes: str | None = None
     errors: list[str] = Field(default_factory=list)
@@ -116,5 +118,27 @@ class RegisterCollateralsRequestSchema(BaseModel):
     collaterals: list[CollateralItemInput] = Field(
         default_factory=list, description="Lista de bienes o títulos aportados en garantía"
     )
+
+
+class GeneratePricingRequestSchema(BaseModel):
+    """Payload opcional para simular o fijar propuesta de pricing y amortización (SPEC-12)."""
+
+    amortization_system: AmortizationSystem = Field(
+        default=AmortizationSystem.FRENCH,
+        description="Sistema de amortización: FRENCH (Cuota Fija) o GERMAN (Amortización Constante)",
+    )
+    term_months_override: int | None = Field(
+        default=None,
+        gt=0,
+        le=120,
+        description="Plazo en meses opcional para simular diferentes escenarios de amortización",
+    )
+    insurance_rate_monthly: float | None = Field(
+        default=None,
+        ge=0.0,
+        le=0.05,
+        description="Tasa mensual de seguro de cartera (por defecto 0.0012 = 0.12%)",
+    )
+
 
 

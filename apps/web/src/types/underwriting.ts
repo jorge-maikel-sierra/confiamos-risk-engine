@@ -47,6 +47,7 @@ export interface UnderwritingRecord {
   historical_precedents?: HistoricalPrecedent[];
   stress_test_results?: StressTestingAnalysis | null;
   collateral_analysis?: UnderwritingCollateralAnalysis | null;
+  pricing_proposal?: PricingProposal | null;
   human_approved: boolean | null;
   human_notes: string | null;
   errors: string[];
@@ -221,5 +222,48 @@ export interface UnderwritingCollateralAnalysis {
   is_fully_secured: boolean;
   recommendation_notes: string;
 }
+
+export type AmortizationSystem = "FRENCH" | "GERMAN";
+
+export interface PaymentPeriodQuota {
+  period: number;
+  beginning_balance: number;
+  principal_amortization: number;
+  interest_payment: number;
+  insurance_payment: number;
+  total_quota: number;
+  ending_balance: number;
+}
+
+export interface PricingProposal {
+  application_id: string;
+  calculated_at: string;
+  requested_amount_usd: number;
+  term_months: number;
+  amortization_system: AmortizationSystem;
+  rating_category: string;
+  ltv_status: string;
+  probability_of_default_pct: number;
+  loss_given_default_pct: number;
+  net_exposure_at_default_usd: number;
+  expected_loss_usd: number;
+  expected_loss_rate_ea: number;
+  cost_of_funds_ea: number;
+  opex_spread_ea: number;
+  raroc_target_ea: number;
+  uncapped_tea: number;
+  applied_tea: number;
+  monthly_effective_rate_pct: number;
+  usury_cap_tea: number;
+  exceeds_usury_cap: boolean;
+  usury_adjustment_delta: number;
+  first_month_quota_usd: number;
+  total_interest_usd: number;
+  total_insurance_usd: number;
+  total_cost_of_credit_usd: number;
+  recommendation_notes: string;
+  amortization_schedule: PaymentPeriodQuota[];
+}
+
 
 

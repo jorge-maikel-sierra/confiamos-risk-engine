@@ -29,6 +29,10 @@ from src.application.use_cases.manage_collaterals import (
     GetCollateralAnalysisUseCase,
     RegisterCollateralsUseCase,
 )
+from src.application.use_cases.manage_pricing import (
+    GeneratePricingUseCase,
+    GetPricingUseCase,
+)
 from src.application.use_cases.start_underwriting import (
     StartUnderwritingCommand,
     StartUnderwritingUseCase,
@@ -64,4 +68,6 @@ __all__ = [
     "GetStressTestAnalysisUseCase",
     "RegisterCollateralsUseCase",
     "GetCollateralAnalysisUseCase",
+    "GeneratePricingUseCase",
+    "GetPricingUseCase",
 ]

@@ -8,6 +8,7 @@ from typing import Any, Protocol
 
 from src.domain.collaterals import CollateralItemInput, UnderwritingCollateralAnalysis
 from src.domain.metrics import FinancialHealthMetrics
+from src.domain.pricing import AmortizationSystem, PricingProposal
 from src.domain.state import UnderwritingVerdict
 from src.domain.stress_testing import StressParameters, StressTestingAnalysis
 from src.domain.vector_search import HistoricalLoanPrecedent
@@ -118,5 +119,27 @@ class CollateralServicePort(Protocol):
     ) -> UnderwritingCollateralAnalysis:
         """Recupera el análisis de garantías y LTV actual del expediente."""
         ...
+
+
+class PricingServicePort(Protocol):
+    """Puerto de dominio para el cálculo de pricing ajustado al riesgo y amortizaciones (SPEC-12)."""
+
+    async def calculate_pricing(
+        self,
+        application_id: str,
+        amortization_system: AmortizationSystem = AmortizationSystem.FRENCH,
+        term_months_override: int | None = None,
+        insurance_rate_monthly: float | None = None,
+    ) -> PricingProposal:
+        """Calcula o recalcula la propuesta de pricing y el plan de amortización."""
+        ...
+
+    async def get_pricing(
+        self,
+        application_id: str,
+    ) -> PricingProposal:
+        """Obtiene la propuesta de pricing y amortización previamente calculada."""
+        ...
+
 
 

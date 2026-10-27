@@ -77,4 +77,14 @@ class IUnderwritingRepository(ABC):
         """Persiste la valuación de garantías y deducción de provisiones netas (SPEC-11)."""
         ...
 
+    @abstractmethod
+    async def save_pricing_proposal(
+        self,
+        application_id: str,
+        pricing: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Persiste la propuesta de pricing ajustado al riesgo y plan de amortización (SPEC-12)."""
+        ...
+
+
 

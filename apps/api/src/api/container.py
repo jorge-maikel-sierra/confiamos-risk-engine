@@ -26,6 +26,10 @@ from src.application.use_cases.manage_collaterals import (
     GetCollateralAnalysisUseCase,
     RegisterCollateralsUseCase,
 )
+from src.application.use_cases.manage_pricing import (
+    GeneratePricingUseCase,
+    GetPricingUseCase,
+)
 from src.application.use_cases.start_underwriting import StartUnderwritingUseCase
 from src.application.use_cases.stress_test_underwriting import (
     GetStressTestAnalysisUseCase,
@@ -248,5 +252,21 @@ def get_get_collateral_analysis_use_case(
 ) -> GetCollateralAnalysisUseCase:
     """Construye GetCollateralAnalysisUseCase (SPEC-11)."""
     return GetCollateralAnalysisUseCase(repository=repo, register_use_case=register_use_case)
+
+
+def get_generate_pricing_use_case(
+    repo: Annotated[IUnderwritingRepository, Depends(get_underwriting_repository)],
+) -> GeneratePricingUseCase:
+    """Construye GeneratePricingUseCase (SPEC-12)."""
+    return GeneratePricingUseCase(repository=repo)
+
+
+def get_get_pricing_use_case(
+    repo: Annotated[IUnderwritingRepository, Depends(get_underwriting_repository)],
+    generate_use_case: Annotated[GeneratePricingUseCase, Depends(get_generate_pricing_use_case)],
+) -> GetPricingUseCase:
+    """Construye GetPricingUseCase (SPEC-12)."""
+    return GetPricingUseCase(repository=repo, generate_use_case=generate_use_case)
+
 
 

@@ -50,6 +50,9 @@ class CreditApplicationModel(Base):
     collateral_analysis: Mapped[dict[str, Any] | None] = mapped_column(
         JSONType, nullable=True
     )
+    pricing_proposal: Mapped[dict[str, Any] | None] = mapped_column(
+        JSONType, nullable=True
+    )
 
     human_approved: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
     human_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -85,6 +88,7 @@ class CreditApplicationModel(Base):
             "historical_precedents": self.historical_precedents or [],
             "stress_test_results": self.stress_test_results,
             "collateral_analysis": self.collateral_analysis,
+            "pricing_proposal": self.pricing_proposal,
             "human_approved": self.human_approved,
             "human_notes": self.human_notes,
             "created_at": self.created_at.isoformat() if self.created_at else None,

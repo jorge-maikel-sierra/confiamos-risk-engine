@@ -104,6 +104,12 @@ async def init_db(target_engine: AsyncEngine | None = None) -> None:
                     "collateral_analysis JSONB;"
                 )
             )
+            await conn.execute(
+                text(
+                    "ALTER TABLE credit_applications ADD COLUMN IF NOT EXISTS "
+                    "pricing_proposal JSONB;"
+                )
+            )
 
 
 async def get_db_session() -> AsyncGenerator[AsyncSession, None]:

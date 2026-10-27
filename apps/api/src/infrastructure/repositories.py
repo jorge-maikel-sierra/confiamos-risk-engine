@@ -123,6 +123,17 @@ class InMemoryUnderwritingRepository(IUnderwritingRepository):
         record["collateral_analysis"] = analysis
         return record
 
+    async def save_pricing_proposal(
+        self,
+        application_id: str,
+        pricing: dict[str, Any],
+    ) -> dict[str, Any]:
+        record = self._storage.get(application_id)
+        if not record:
+            raise KeyError(f"Solicitud {application_id} no encontrada en repositorio en memoria.")
+        record["pricing_proposal"] = pricing
+        return record
+
 
 
 
@@ -256,6 +267,22 @@ class PostgresUnderwritingRepository(IUnderwritingRepository):
             raise KeyError(f"Solicitud {application_id} no encontrada en base de datos.")
 
         model.collateral_analysis = analysis
+        await self.session.flush()
+        await self.session.refresh(model)
+        return model.to_dict()
+
+    async def save_pricing_proposal(
+        self,
+        application_id: str,
+        pricing: dict[str, Any],
+    ) -> dict[str, Any]:
+        stmt = select(CreditApplicationModel).where(CreditApplicationModel.id == application_id)
+        result = await self.session.execute(stmt)
+        model = result.scalar_one_or_none()
+        if not model:
+            raise KeyError(f"Solicitud {application_id} no encontrada en base de datos.")
+
+        model.pricing_proposal = pricing
         await self.session.flush()
         await self.session.refresh(model)
         return model.to_dict()

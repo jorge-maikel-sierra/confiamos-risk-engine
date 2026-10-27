@@ -23,7 +23,9 @@ from fastapi.responses import StreamingResponse
 from src.api.container import (
     get_export_dossier_pdf_use_case,
     get_export_financial_excel_use_case,
+    get_generate_pricing_use_case,
     get_get_collateral_analysis_use_case,
+    get_get_pricing_use_case,
     get_get_stress_test_analysis_use_case,
     get_ingest_document_use_case,
     get_list_underwritings_use_case,
@@ -37,6 +39,7 @@ from src.api.container import (
     get_verify_integrity_seal_use_case,
 )
 from src.api.schemas import (
+    GeneratePricingRequestSchema,
     HistoricalPrecedentSchema,
     HumanReviewRequestSchema,
     MetricsSummarySchema,
@@ -64,6 +67,10 @@ from src.application.use_cases.manage_collaterals import (
     GetCollateralAnalysisUseCase,
     RegisterCollateralsUseCase,
 )
+from src.application.use_cases.manage_pricing import (
+    GeneratePricingUseCase,
+    GetPricingUseCase,
+)
 from src.application.use_cases.start_underwriting import (
     StartUnderwritingCommand,
     StartUnderwritingUseCase,
@@ -78,6 +85,7 @@ from src.application.use_cases.submit_human_review import (
 )
 from src.domain.collaterals import UnderwritingCollateralAnalysis
 from src.domain.document_ingestion import FinancialExtractionResult
+from src.domain.pricing import AmortizationSystem, PricingProposal
 from src.domain.scoring import CreditScorecardResult
 from src.domain.stress_testing import StressTestingAnalysis
 from src.infrastructure.aws_sns_adapter import global_event_broadcaster
@@ -165,6 +173,14 @@ def _format_underwrite_response(app_id: str, values: dict[str, Any]) -> Underwri
         elif isinstance(raw_collateral, dict):
             collateral_res = UnderwritingCollateralAnalysis(**raw_collateral)
 
+    pricing_res = None
+    raw_pricing = values.get("pricing_proposal")
+    if raw_pricing:
+        if isinstance(raw_pricing, PricingProposal):
+            pricing_res = raw_pricing
+        elif isinstance(raw_pricing, dict):
+            pricing_res = PricingProposal(**raw_pricing)
+
     return UnderwriteResponseSchema(
         application_id=app_id,
         associated_id=values.get("associated_id", ""),
@@ -178,6 +194,7 @@ def _format_underwrite_response(app_id: str, values: dict[str, Any]) -> Underwri
         historical_precedents=historical_precedents,
         stress_test_results=stress_res,
         collateral_analysis=collateral_res,
+        pricing_proposal=pricing_res,
         human_approved=values.get("human_approved"),
         human_notes=values.get("human_notes"),
         errors=values.get("errors", []),
@@ -460,5 +477,45 @@ async def get_collateral_analysis(
     ],
 ) -> UnderwritingCollateralAnalysis:
     return await use_case.execute(application_id=application_id)
+
+
+@router.post(
+    "/{application_id}/pricing",
+    response_model=PricingProposal,
+    summary="Calcular o recalcular propuesta de pricing y amortización",
+    description="Calcula la tasa por componentes (COF, OPEX, Riesgo EL, RAROC), valida usura y genera plan de amortización (SPEC-12).",
+)
+async def generate_pricing(
+    application_id: str,
+    payload: GeneratePricingRequestSchema | None = None,
+    use_case: Annotated[
+        GeneratePricingUseCase, Depends(get_generate_pricing_use_case)
+    ] = None,
+) -> PricingProposal:
+    system = payload.amortization_system if payload else AmortizationSystem.FRENCH
+    term = payload.term_months_override if payload else None
+    insurance = payload.insurance_rate_monthly if payload else None
+    return await use_case.execute(
+        application_id=application_id,
+        amortization_system=system,
+        term_months_override=term,
+        insurance_rate_monthly=insurance,
+    )
+
+
+@router.get(
+    "/{application_id}/pricing",
+    response_model=PricingProposal,
+    summary="Consultar propuesta de pricing y plan de amortización",
+    description="Retorna la propuesta de pricing y tabla de amortización persistida o calculada por defecto (SPEC-12).",
+)
+async def get_pricing(
+    application_id: str,
+    use_case: Annotated[
+        GetPricingUseCase, Depends(get_get_pricing_use_case)
+    ] = None,
+) -> PricingProposal:
+    return await use_case.execute(application_id=application_id)
+
 
 

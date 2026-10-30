@@ -73,14 +73,21 @@ export function PricingAmortizationCard({
     }
   }, [initialPricing, loadData]);
 
-  const handleRecalculate = async (systemToUse?: AmortizationSystem) => {
+  const handleRecalculate = async (
+    systemToUse?: AmortizationSystem,
+    termToUse?: number
+  ) => {
     try {
       setCalculating(true);
       setError(null);
       const sys = systemToUse || selectedSystem;
+      const term = termToUse !== undefined ? termToUse : termMonths;
+      setSelectedSystem(sys);
+      setTermMonths(term);
+
       const data = await generatePricingProposal(applicationId, {
         amortization_system: sys,
-        term_months_override: Number(termMonths),
+        term_months_override: Number(term),
       });
       setPricing(data);
       setSelectedSystem(data.amortization_system);
@@ -270,10 +277,7 @@ export function PricingAmortizationCard({
             <div className="inline-flex rounded-lg border border-slate-300 p-0.5 bg-white">
               <button
                 type="button"
-                onClick={() => {
-                  setSelectedSystem("FRENCH");
-                  handleRecalculate("FRENCH");
-                }}
+                onClick={() => handleRecalculate("FRENCH", termMonths)}
                 disabled={calculating}
                 className={`px-3 py-1.5 text-xs font-bold rounded-md transition ${
                   selectedSystem === "FRENCH"
@@ -285,10 +289,7 @@ export function PricingAmortizationCard({
               </button>
               <button
                 type="button"
-                onClick={() => {
-                  setSelectedSystem("GERMAN");
-                  handleRecalculate("GERMAN");
-                }}
+                onClick={() => handleRecalculate("GERMAN", termMonths)}
                 disabled={calculating}
                 className={`px-3 py-1.5 text-xs font-bold rounded-md transition ${
                   selectedSystem === "GERMAN"
@@ -315,10 +316,7 @@ export function PricingAmortizationCard({
               <button
                 key={months}
                 type="button"
-                onClick={() => {
-                  setTermMonths(months);
-                  setTimeout(() => handleRecalculate(), 50);
-                }}
+                onClick={() => handleRecalculate(selectedSystem, months)}
                 disabled={calculating}
                 className={`px-2.5 py-1 text-xs font-bold rounded-lg border transition ${
                   termMonths === months

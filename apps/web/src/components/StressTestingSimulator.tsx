@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Activity,
   AlertTriangle,
@@ -47,7 +47,7 @@ export function StressTestingSimulator({ applicationId }: StressTestingSimulator
   const [opexShock, setOpexShock] = useState<number>(10); // 10%
   const [rateShockBps, setRateShockBps] = useState<number>(300); // 300 bps (+3.0%)
 
-  const loadAnalysis = async () => {
+  const loadAnalysis = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -58,11 +58,11 @@ export function StressTestingSimulator({ applicationId }: StressTestingSimulator
     } finally {
       setLoading(false);
     }
-  };
+  }, [applicationId]);
 
   useEffect(() => {
     loadAnalysis();
-  }, [applicationId]);
+  }, [loadAnalysis]);
 
   const handleSimulateCustom = async () => {
     try {

@@ -191,7 +191,7 @@ STORIES_CATALOG: dict[int, dict[str, Any]] = {
             "Implementamos el motor de valuación de colaterales admisibles y LTV con haircuts "
             "normativos (SPEC-11), recalculando la provisión neta y liberando capital patrimonial."
         ),
-        "hashtags": ["#CollateralManagement", "#RiskMitigation", "#Fintech", "#CreditRisk"],
+        "hashtags": ["#CollateralManagement", "#RiskMitigation", "#Fintech"],
     },
     12: {
         "hook": (
@@ -206,7 +206,7 @@ STORIES_CATALOG: dict[int, dict[str, Any]] = {
             "Desarrollamos el motor de Risk-Based Pricing (RBP) y RAROC (SPEC-12), sumando costo de "
             "fondeo, OPEX y prima de riesgo, con generador de amortizaciones Francesa y Alemana."
         ),
-        "hashtags": ["#RiskBasedPricing", "#RAROC", "#CreditRisk", "#FintechArchitecture"],
+        "hashtags": ["#RiskBasedPricing", "#RAROC", "#CreditRisk"],
     },
     13: {
         "hook": (
@@ -221,7 +221,7 @@ STORIES_CATALOG: dict[int, dict[str, Any]] = {
             "Implementamos la Matriz de Atribuciones y Comité Colegiado (SPEC-13), derivando "
             "niveles 1 a 4, votación multi-rol con quórum y emisión de Acta Resolutiva oficial."
         ),
-        "hashtags": ["#CreditGovernance", "#BankingWorkflow", "#Fintech", "#RiskManagement"],
+        "hashtags": ["#CreditGovernance", "#BankingWorkflow", "#Fintech"],
     },
 }
 
@@ -256,12 +256,19 @@ def get_story_for_day(day: int) -> DailyPostStory:
     """Obtiene la historia estructurada para el día especificado."""
     if day in STORIES_CATALOG:
         entry = STORIES_CATALOG[day]
+        raw_tags = entry.get("hashtags", ["#Fintech", "#SoftwareEngineering", "#AIEngineering"])
+        # Asegurar exactamente 3 hashtags para evitar fallos de validación en tiempo de ejecución
+        if len(raw_tags) > 3:
+            raw_tags = raw_tags[:3]
+        elif len(raw_tags) < 3:
+            defaults = ["#Fintech", "#SoftwareEngineering", "#AIEngineering"]
+            raw_tags = (raw_tags + [t for t in defaults if t not in raw_tags])[:3]
         return DailyPostStory(
             day_number=day,
             hook=entry["hook"],
             conflict=entry["conflict"],
             solution=entry["solution"],
-            hashtags=entry.get("hashtags", ["#Fintech", "#SoftwareEngineering", "#AIEngineering"]),
+            hashtags=raw_tags,
         )
 
     # Fallback constructivo para días posteriores del plan de 100 días

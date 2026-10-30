@@ -3,6 +3,12 @@
 from pydantic import BaseModel, Field
 
 from src.domain.collaterals import CollateralItemInput, UnderwritingCollateralAnalysis
+from src.domain.committee import (
+    CommitteeMemberRole,
+    CommitteeResolution,
+    CommitteeVoteType,
+    CreditCovenant,
+)
 from src.domain.pricing import AmortizationSystem, PricingProposal
 from src.domain.scoring import CreditScorecardResult
 from src.domain.state import UnderwritingVerdict
@@ -79,6 +85,7 @@ class UnderwriteResponseSchema(BaseModel):
     stress_test_results: StressTestingAnalysis | None = None
     collateral_analysis: UnderwritingCollateralAnalysis | None = None
     pricing_proposal: PricingProposal | None = None
+    committee_resolution: CommitteeResolution | None = None
     human_approved: bool | None = None
     human_notes: str | None = None
     errors: list[str] = Field(default_factory=list)
@@ -138,6 +145,19 @@ class GeneratePricingRequestSchema(BaseModel):
         ge=0.0,
         le=0.05,
         description="Tasa mensual de seguro de cartera (por defecto 0.0012 = 0.12%)",
+    )
+
+
+class CastVoteRequestSchema(BaseModel):
+    """Payload para emitir un voto en el comité de crédito colegiado (SPEC-13)."""
+
+    voter_id: str = Field(description="Identificador único del votante / oficial")
+    voter_name: str = Field(description="Nombre completo del votante")
+    role: CommitteeMemberRole = Field(description="Rol del votante en el comité")
+    vote: CommitteeVoteType = Field(description="Sentido del voto (APPROVE, CONDITION, REJECT, ABSTAIN)")
+    notes: str = Field(default="", description="Justificación técnica o motivos del voto")
+    covenants: list[CreditCovenant] = Field(
+        default_factory=list, description="Covenants resolutivos o condiciones precedentes impuestas"
     )
 
 

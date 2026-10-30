@@ -29,6 +29,11 @@ from src.application.use_cases.manage_collaterals import (
     GetCollateralAnalysisUseCase,
     RegisterCollateralsUseCase,
 )
+from src.application.use_cases.manage_committee import (
+    CastCommitteeVoteUseCase,
+    EvaluateGovernanceLevelUseCase,
+    GetCommitteeResolutionUseCase,
+)
 from src.application.use_cases.manage_pricing import (
     GeneratePricingUseCase,
     GetPricingUseCase,
@@ -70,4 +75,7 @@ __all__ = [
     "GetCollateralAnalysisUseCase",
     "GeneratePricingUseCase",
     "GetPricingUseCase",
+    "EvaluateGovernanceLevelUseCase",
+    "CastCommitteeVoteUseCase",
+    "GetCommitteeResolutionUseCase",
 ]

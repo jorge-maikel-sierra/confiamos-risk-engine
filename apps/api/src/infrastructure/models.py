@@ -53,6 +53,9 @@ class CreditApplicationModel(Base):
     pricing_proposal: Mapped[dict[str, Any] | None] = mapped_column(
         JSONType, nullable=True
     )
+    committee_resolution: Mapped[dict[str, Any] | None] = mapped_column(
+        JSONType, nullable=True
+    )
 
     human_approved: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
     human_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -89,6 +92,7 @@ class CreditApplicationModel(Base):
             "stress_test_results": self.stress_test_results,
             "collateral_analysis": self.collateral_analysis,
             "pricing_proposal": self.pricing_proposal,
+            "committee_resolution": self.committee_resolution,
             "human_approved": self.human_approved,
             "human_notes": self.human_notes,
             "created_at": self.created_at.isoformat() if self.created_at else None,

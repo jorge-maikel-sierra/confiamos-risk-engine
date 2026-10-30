@@ -208,6 +208,21 @@ STORIES_CATALOG: dict[int, dict[str, Any]] = {
         ),
         "hashtags": ["#RiskBasedPricing", "#RAROC", "#CreditRisk", "#FintechArchitecture"],
     },
+    13: {
+        "hook": (
+            "En una cooperativa real de crédito, un préstamo de $85,000 USD no lo puede aprobar "
+            "un solo analista con un simple clic: el gobierno corporativo exige comité colegiado."
+        ),
+        "conflict": (
+            "Evitar conflictos de interés y discrecionalidad manual determinando qué instancia "
+            "debe decidir y cómo auditar votos individuales y covenants de aprobación."
+        ),
+        "solution": (
+            "Implementamos la Matriz de Atribuciones y Comité Colegiado (SPEC-13), derivando "
+            "niveles 1 a 4, votación multi-rol con quórum y emisión de Acta Resolutiva oficial."
+        ),
+        "hashtags": ["#CreditGovernance", "#BankingWorkflow", "#Fintech", "#RiskManagement"],
+    },
 }
 
 

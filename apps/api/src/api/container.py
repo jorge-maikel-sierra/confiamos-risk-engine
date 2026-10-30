@@ -26,6 +26,11 @@ from src.application.use_cases.manage_collaterals import (
     GetCollateralAnalysisUseCase,
     RegisterCollateralsUseCase,
 )
+from src.application.use_cases.manage_committee import (
+    CastCommitteeVoteUseCase,
+    EvaluateGovernanceLevelUseCase,
+    GetCommitteeResolutionUseCase,
+)
 from src.application.use_cases.manage_pricing import (
     GeneratePricingUseCase,
     GetPricingUseCase,
@@ -267,6 +272,29 @@ def get_get_pricing_use_case(
 ) -> GetPricingUseCase:
     """Construye GetPricingUseCase (SPEC-12)."""
     return GetPricingUseCase(repository=repo, generate_use_case=generate_use_case)
+
+
+def get_evaluate_governance_use_case(
+    repo: Annotated[IUnderwritingRepository, Depends(get_underwriting_repository)],
+) -> EvaluateGovernanceLevelUseCase:
+    """Construye EvaluateGovernanceLevelUseCase (SPEC-13)."""
+    return EvaluateGovernanceLevelUseCase(repository=repo)
+
+
+def get_cast_committee_vote_use_case(
+    repo: Annotated[IUnderwritingRepository, Depends(get_underwriting_repository)],
+    evaluate_use_case: Annotated[EvaluateGovernanceLevelUseCase, Depends(get_evaluate_governance_use_case)],
+) -> CastCommitteeVoteUseCase:
+    """Construye CastCommitteeVoteUseCase (SPEC-13)."""
+    return CastCommitteeVoteUseCase(repository=repo, evaluate_use_case=evaluate_use_case)
+
+
+def get_get_committee_resolution_use_case(
+    repo: Annotated[IUnderwritingRepository, Depends(get_underwriting_repository)],
+    evaluate_use_case: Annotated[EvaluateGovernanceLevelUseCase, Depends(get_evaluate_governance_use_case)],
+) -> GetCommitteeResolutionUseCase:
+    """Construye GetCommitteeResolutionUseCase (SPEC-13)."""
+    return GetCommitteeResolutionUseCase(repository=repo, evaluate_use_case=evaluate_use_case)
 
 
 

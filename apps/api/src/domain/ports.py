@@ -7,6 +7,11 @@ El dominio NO importa nada de infraestructura; toda dependencia apunta hacia ade
 from typing import Any, Protocol
 
 from src.domain.collaterals import CollateralItemInput, UnderwritingCollateralAnalysis
+from src.domain.committee import (
+    CommitteeResolution,
+    CommitteeVote,
+    GovernanceRequirement,
+)
 from src.domain.metrics import FinancialHealthMetrics
 from src.domain.pricing import AmortizationSystem, PricingProposal
 from src.domain.state import UnderwritingVerdict
@@ -140,6 +145,33 @@ class PricingServicePort(Protocol):
     ) -> PricingProposal:
         """Obtiene la propuesta de pricing y amortización previamente calculada."""
         ...
+
+
+class CommitteeGovernancePort(Protocol):
+    """Puerto de dominio para la gobernanza, comités colegiados y resolución de crédito (SPEC-13)."""
+
+    async def evaluate_governance(
+        self,
+        application_id: str,
+    ) -> GovernanceRequirement:
+        """Evalúa y determina la instancia de competencia legal y quórum requerido."""
+        ...
+
+    async def cast_vote(
+        self,
+        application_id: str,
+        vote: CommitteeVote,
+    ) -> CommitteeResolution:
+        """Registra el voto nominal de un miembro y actualiza la resolución del comité."""
+        ...
+
+    async def get_resolution(
+        self,
+        application_id: str,
+    ) -> CommitteeResolution:
+        """Recupera el acta resolutiva o el estado actual de deliberación."""
+        ...
+
 
 
 

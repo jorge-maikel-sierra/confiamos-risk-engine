@@ -22,6 +22,7 @@ import {
   Award,
   Activity,
   Scale,
+  Users,
 } from "lucide-react";
 import {
   fetchUnderwritingById,
@@ -34,6 +35,7 @@ import { UnderwritingRecord } from "@/types/underwriting";
 import { MetricCard } from "@/components/MetricCard";
 import { VerdictBadge } from "@/components/VerdictBadge";
 import { AnomalyAlertList } from "@/components/AnomalyAlertList";
+import { CommitteeGovernanceCard } from "@/components/CommitteeGovernanceCard";
 import { HumanReviewForm } from "@/components/HumanReviewForm";
 import { ScorecardCard } from "@/components/ScorecardCard";
 import { StressTestingSimulator } from "@/components/StressTestingSimulator";
@@ -447,17 +449,35 @@ export default function UnderwritingDetailPage() {
         />
       </section>
 
-      {/* Formulario de Decisión Humana (Human-in-the-loop) */}
+      {/* 9. Matriz de Atribuciones, Comité de Crédito Colegiado y Acta Resolutiva (SPEC-13) */}
       <section className="space-y-3">
-        <h2 className="text-base font-bold text-slate-900 tracking-tight">
-          9. Resolución Definitiva de Comité
-        </h2>
-        <HumanReviewForm
+        <div className="flex items-center justify-between">
+          <h2 className="text-base font-bold text-slate-900 tracking-tight flex items-center gap-2">
+            <Users className="w-5 h-5 text-indigo-600" />
+            <span>9. Matriz de Atribuciones, Comité Colegiado y Acta Resolutiva (SPEC-13)</span>
+          </h2>
+          <span className="text-xs font-semibold text-slate-500 bg-slate-100 px-3 py-1 rounded-full border border-slate-200">
+            Gobernanza Estatutaria & Covenants
+          </span>
+        </div>
+        <CommitteeGovernanceCard
           applicationId={record.application_id}
-          isCompleted={record.is_completed}
-          humanApproved={record.human_approved}
-          humanNotes={record.human_notes}
-          onReviewSubmitted={(updated) => setRecord(updated)}
+          initialResolution={record.committee_resolution}
+          onResolutionUpdated={(newRes) => {
+            setRecord((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    committee_resolution: newRes,
+                    is_completed: newRes.is_final ? true : prev.is_completed,
+                    human_approved: newRes.is_final
+                      ? newRes.status.includes("APPROVED")
+                      : prev.human_approved,
+                    human_notes: newRes.resolution_notes,
+                  }
+                : null
+            );
+          }}
         />
       </section>
 

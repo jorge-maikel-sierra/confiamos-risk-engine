@@ -48,6 +48,7 @@ export interface UnderwritingRecord {
   stress_test_results?: StressTestingAnalysis | null;
   collateral_analysis?: UnderwritingCollateralAnalysis | null;
   pricing_proposal?: PricingProposal | null;
+  committee_resolution?: CommitteeResolution | null;
   human_approved: boolean | null;
   human_notes: string | null;
   errors: string[];
@@ -263,6 +264,61 @@ export interface PricingProposal {
   total_cost_of_credit_usd: number;
   recommendation_notes: string;
   amortization_schedule: PaymentPeriodQuota[];
+}
+
+export type ApprovalAuthorityLevel =
+  | "LEVEL_1_OFFICER"
+  | "LEVEL_2_MANAGER"
+  | "LEVEL_3_COMMITTEE"
+  | "LEVEL_4_BOARD";
+
+export type CommitteeVoteType = "APPROVE" | "CONDITION" | "REJECT";
+
+export type CommitteeMemberRole =
+  | "RISK_OFFICER"
+  | "CREDIT_MANAGER"
+  | "OPERATIONS_DIRECTOR"
+  | "BOARD_DIRECTOR";
+
+export type ResolutionStatus =
+  | "IN_DELIBERATION"
+  | "APPROVED_BY_COMMITTEE"
+  | "APPROVED_WITH_CONDITIONS"
+  | "REJECTED_BY_COMMITTEE";
+
+export interface CreditCovenant {
+  code: string;
+  description: string;
+  covenant_type?: string;
+  due_days: number;
+}
+
+export interface CommitteeVote {
+  voter_id: string;
+  voter_name: string;
+  role: CommitteeMemberRole;
+  vote: CommitteeVoteType;
+  notes: string;
+  covenants: CreditCovenant[];
+  voted_at: string;
+}
+
+export interface CommitteeResolution {
+  application_id: string;
+  act_number: string;
+  governance_level: ApprovalAuthorityLevel;
+  governance_title: string;
+  status: ResolutionStatus;
+  required_quorum: number;
+  required_roles: CommitteeMemberRole[];
+  votes_cast_count: number;
+  is_quorum_reached: boolean;
+  votes: CommitteeVote[];
+  approved_covenants: CreditCovenant[];
+  resolution_notes: string;
+  resolved_at: string | null;
+  offer_expires_at: string | null;
+  is_final: boolean;
 }
 
 

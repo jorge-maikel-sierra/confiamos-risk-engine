@@ -24,7 +24,9 @@ from src.api.container import (
     get_export_dossier_pdf_use_case,
     get_export_financial_excel_use_case,
     get_generate_pricing_use_case,
+    get_cast_committee_vote_use_case,
     get_get_collateral_analysis_use_case,
+    get_get_committee_resolution_use_case,
     get_get_pricing_use_case,
     get_get_stress_test_analysis_use_case,
     get_ingest_document_use_case,
@@ -39,6 +41,7 @@ from src.api.container import (
     get_verify_integrity_seal_use_case,
 )
 from src.api.schemas import (
+    CastVoteRequestSchema,
     GeneratePricingRequestSchema,
     HistoricalPrecedentSchema,
     HumanReviewRequestSchema,
@@ -67,6 +70,10 @@ from src.application.use_cases.manage_collaterals import (
     GetCollateralAnalysisUseCase,
     RegisterCollateralsUseCase,
 )
+from src.application.use_cases.manage_committee import (
+    CastCommitteeVoteUseCase,
+    GetCommitteeResolutionUseCase,
+)
 from src.application.use_cases.manage_pricing import (
     GeneratePricingUseCase,
     GetPricingUseCase,
@@ -84,6 +91,7 @@ from src.application.use_cases.submit_human_review import (
     SubmitHumanReviewUseCase,
 )
 from src.domain.collaterals import UnderwritingCollateralAnalysis
+from src.domain.committee import CommitteeResolution
 from src.domain.document_ingestion import FinancialExtractionResult
 from src.domain.pricing import AmortizationSystem, PricingProposal
 from src.domain.scoring import CreditScorecardResult
@@ -181,6 +189,14 @@ def _format_underwrite_response(app_id: str, values: dict[str, Any]) -> Underwri
         elif isinstance(raw_pricing, dict):
             pricing_res = PricingProposal(**raw_pricing)
 
+    committee_res = None
+    raw_committee = values.get("committee_resolution")
+    if raw_committee:
+        if isinstance(raw_committee, CommitteeResolution):
+            committee_res = raw_committee
+        elif isinstance(raw_committee, dict):
+            committee_res = CommitteeResolution(**raw_committee)
+
     return UnderwriteResponseSchema(
         application_id=app_id,
         associated_id=values.get("associated_id", ""),
@@ -195,6 +211,7 @@ def _format_underwrite_response(app_id: str, values: dict[str, Any]) -> Underwri
         stress_test_results=stress_res,
         collateral_analysis=collateral_res,
         pricing_proposal=pricing_res,
+        committee_resolution=committee_res,
         human_approved=values.get("human_approved"),
         human_notes=values.get("human_notes"),
         errors=values.get("errors", []),
@@ -516,6 +533,51 @@ async def get_pricing(
     ] = None,
 ) -> PricingProposal:
     return await use_case.execute(application_id=application_id)
+
+
+@router.get(
+    "/{application_id}/committee",
+    response_model=CommitteeResolution,
+    summary="Consultar estado de deliberación o acta resolutiva de comité",
+    description="Retorna los requisitos de atribución, quórum, votos computados y acta oficial si está completada (SPEC-13).",
+)
+async def get_committee_resolution(
+    application_id: str,
+    use_case: Annotated[
+        GetCommitteeResolutionUseCase, Depends(get_get_committee_resolution_use_case)
+    ],
+) -> CommitteeResolution:
+    return await use_case.execute(application_id=application_id)
+
+
+@router.post(
+    "/{application_id}/committee/votes",
+    response_model=CommitteeResolution,
+    summary="Emitir voto colegiado de miembro del comité de crédito",
+    description="Registra el voto (Aprobar, Condicionar, Rechazar), actualiza quórum y si se alcanza mayoría emite el acta resolutiva oficial (SPEC-13).",
+)
+async def cast_committee_vote(
+    application_id: str,
+    payload: CastVoteRequestSchema,
+    use_case: Annotated[
+        CastCommitteeVoteUseCase, Depends(get_cast_committee_vote_use_case)
+    ],
+) -> CommitteeResolution:
+    resolution = await use_case.execute(
+        application_id=application_id,
+        voter_id=payload.voter_id,
+        voter_name=payload.voter_name,
+        role=payload.role,
+        vote=payload.vote,
+        notes=payload.notes,
+        covenants=payload.covenants,
+    )
+    if resolution.is_final:
+        await global_event_broadcaster.broadcast(
+            f"event: committee_resolution\ndata: {{\"application_id\": \"{application_id}\", \"status\": \"{resolution.status.value}\", \"act_number\": \"{resolution.act_number}\"}}\n\n"
+        )
+    return resolution
+
 
 
 

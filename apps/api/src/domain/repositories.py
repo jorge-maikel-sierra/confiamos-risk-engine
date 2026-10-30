@@ -86,5 +86,18 @@ class IUnderwritingRepository(ABC):
         """Persiste la propuesta de pricing ajustado al riesgo y plan de amortización (SPEC-12)."""
         ...
 
+    @abstractmethod
+    async def save_committee_resolution(
+        self,
+        application_id: str,
+        resolution: dict[str, Any],
+        is_final: bool = False,
+        approved: bool | None = None,
+        notes: str | None = None,
+    ) -> dict[str, Any]:
+        """Persiste el acta resolutiva del comité y actualiza el estado general si es final (SPEC-13)."""
+        ...
+
+
 
 

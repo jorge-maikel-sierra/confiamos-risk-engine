@@ -1,7 +1,11 @@
 import {
   AmortizationSystem,
   CollateralItemInput,
+  CommitteeMemberRole,
+  CommitteeResolution,
+  CommitteeVoteType,
   CreateUnderwritingPayload,
+  CreditCovenant,
   FinancialExtractionResult,
   HumanReviewPayload,
   PaginatedUnderwritingList,
@@ -268,5 +272,50 @@ export async function generatePricingProposal(
 
   return res.json();
 }
+
+export async function fetchCommitteeResolution(
+  id: string
+): Promise<CommitteeResolution> {
+  const res = await fetch(
+    `${BASE_URL}/underwritings/${encodeURIComponent(id)}/committee`,
+    { cache: "no-store" }
+  );
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.detail || "Error al obtener resolución de comité");
+  }
+  return res.json();
+}
+
+export async function castCommitteeVote(
+  id: string,
+  payload: {
+    voter_id: string;
+    voter_name: string;
+    role: CommitteeMemberRole;
+    vote: CommitteeVoteType;
+    notes: string;
+    covenants?: CreditCovenant[];
+  }
+): Promise<CommitteeResolution> {
+  const res = await fetch(
+    `${BASE_URL}/underwritings/${encodeURIComponent(id)}/committee/votes`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    }
+  );
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.detail || "Error al registrar voto de comité");
+  }
+
+  return res.json();
+}
+
 
 

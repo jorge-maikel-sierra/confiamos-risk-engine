@@ -107,3 +107,14 @@ def register_problem_details_handlers(app: FastAPI) -> None:
             error_type="https://confiamos.co/errors/unprocessable-document",
             instance=request.url.path,
         )
+
+    @app.exception_handler(ValueError)
+    async def value_error_handler(request: Request, exc: ValueError) -> JSONResponse:
+        return create_problem_response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            title="Regla de Negocio Incumplida",
+            detail=str(exc),
+            error_type="https://confiamos.co/errors/business-rule-violation",
+            instance=request.url.path,
+        )
+

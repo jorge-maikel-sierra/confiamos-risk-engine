@@ -4,8 +4,11 @@ import {
   CommitteeMemberRole,
   CommitteeResolution,
   CommitteeVoteType,
+  CovenantFulfillmentStatus,
   CreateUnderwritingPayload,
   CreditCovenant,
+  DisbursementGateStatus,
+  DisbursementOrder,
   FinancialExtractionResult,
   HumanReviewPayload,
   PaginatedUnderwritingList,
@@ -316,6 +319,82 @@ export async function castCommitteeVote(
 
   return res.json();
 }
+
+export async function fetchDisbursementGateStatus(
+  id: string
+): Promise<DisbursementGateStatus> {
+  const res = await fetch(
+    `${BASE_URL}/underwritings/${encodeURIComponent(id)}/disbursement`,
+    { cache: "no-store" }
+  );
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(
+      errorData.detail || "Error al consultar compuerta de desembolso"
+    );
+  }
+  return res.json();
+}
+
+export async function verifyCovenant(
+  id: string,
+  code: string,
+  payload: {
+    verified_by: string;
+    notes?: string;
+    status?: CovenantFulfillmentStatus;
+  }
+): Promise<DisbursementGateStatus> {
+  const res = await fetch(
+    `${BASE_URL}/underwritings/${encodeURIComponent(id)}/disbursement/covenants/${encodeURIComponent(code)}/verify`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    }
+  );
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(
+      errorData.detail || "Error al verificar condición precedente"
+    );
+  }
+
+  return res.json();
+}
+
+export async function executeDisbursement(
+  id: string,
+  payload: {
+    destination_bank: string;
+    destination_account_number: string;
+    account_type?: string;
+  }
+): Promise<DisbursementOrder> {
+  const res = await fetch(
+    `${BASE_URL}/underwritings/${encodeURIComponent(id)}/disbursement/execute`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    }
+  );
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(
+      errorData.detail || "Error al formalizar orden de giro y pagaré digital"
+    );
+  }
+
+  return res.json();
+}
+
 
 
 

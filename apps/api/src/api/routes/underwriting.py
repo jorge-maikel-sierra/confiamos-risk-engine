@@ -25,8 +25,10 @@ from src.api.container import (
     get_export_financial_excel_use_case,
     get_generate_pricing_use_case,
     get_cast_committee_vote_use_case,
+    get_execute_disbursement_use_case,
     get_get_collateral_analysis_use_case,
     get_get_committee_resolution_use_case,
+    get_get_disbursement_gate_status_use_case,
     get_get_pricing_use_case,
     get_get_stress_test_analysis_use_case,
     get_ingest_document_use_case,
@@ -38,10 +40,12 @@ from src.api.container import (
     get_submit_human_review_use_case,
     get_underwriting_by_id_use_case,
     get_underwriting_repository,
+    get_verify_covenant_use_case,
     get_verify_integrity_seal_use_case,
 )
 from src.api.schemas import (
     CastVoteRequestSchema,
+    ExecuteDisbursementRequestSchema,
     GeneratePricingRequestSchema,
     HistoricalPrecedentSchema,
     HumanReviewRequestSchema,
@@ -51,6 +55,7 @@ from src.api.schemas import (
     StressTestRequestSchema,
     UnderwriteRequestSchema,
     UnderwriteResponseSchema,
+    VerifyCovenantRequestSchema,
 )
 from src.application.use_cases.export_dossier import (
     ExportDossierPdfUseCase,
@@ -74,6 +79,11 @@ from src.application.use_cases.manage_committee import (
     CastCommitteeVoteUseCase,
     GetCommitteeResolutionUseCase,
 )
+from src.application.use_cases.manage_disbursement import (
+    ExecuteDisbursementUseCase,
+    GetDisbursementGateStatusUseCase,
+    VerifyCovenantUseCase,
+)
 from src.application.use_cases.manage_pricing import (
     GeneratePricingUseCase,
     GetPricingUseCase,
@@ -92,6 +102,7 @@ from src.application.use_cases.submit_human_review import (
 )
 from src.domain.collaterals import UnderwritingCollateralAnalysis
 from src.domain.committee import CommitteeResolution
+from src.domain.disbursement import DisbursementGateStatus, DisbursementOrder
 from src.domain.document_ingestion import FinancialExtractionResult
 from src.domain.pricing import AmortizationSystem, PricingProposal
 from src.domain.scoring import CreditScorecardResult
@@ -197,6 +208,14 @@ def _format_underwrite_response(app_id: str, values: dict[str, Any]) -> Underwri
         elif isinstance(raw_committee, dict):
             committee_res = CommitteeResolution(**raw_committee)
 
+    disbursement_order_res = None
+    raw_disbursement = values.get("disbursement_order")
+    if raw_disbursement:
+        if isinstance(raw_disbursement, DisbursementOrder):
+            disbursement_order_res = raw_disbursement
+        elif isinstance(raw_disbursement, dict) and raw_disbursement.get("order_id"):
+            disbursement_order_res = DisbursementOrder(**raw_disbursement)
+
     return UnderwriteResponseSchema(
         application_id=app_id,
         associated_id=values.get("associated_id", ""),
@@ -212,6 +231,7 @@ def _format_underwrite_response(app_id: str, values: dict[str, Any]) -> Underwri
         collateral_analysis=collateral_res,
         pricing_proposal=pricing_res,
         committee_resolution=committee_res,
+        disbursement_order=disbursement_order_res,
         human_approved=values.get("human_approved"),
         human_notes=values.get("human_notes"),
         errors=values.get("errors", []),
@@ -577,6 +597,70 @@ async def cast_committee_vote(
             f"event: committee_resolution\ndata: {{\"application_id\": \"{application_id}\", \"status\": \"{resolution.status.value}\", \"act_number\": \"{resolution.act_number}\"}}\n\n"
         )
     return resolution
+
+
+@router.get(
+    "/{application_id}/disbursement",
+    response_model=DisbursementGateStatus,
+    summary="Consultar estado de la compuerta de desembolso y liquidación",
+    description="Evalúa los covenants precedentes requeridos y simula la liquidación cooperativa neta (SPEC-14).",
+)
+async def get_disbursement_gate_status(
+    application_id: str,
+    use_case: Annotated[
+        GetDisbursementGateStatusUseCase, Depends(get_get_disbursement_gate_status_use_case)
+    ],
+) -> DisbursementGateStatus:
+    return await use_case.execute(application_id=application_id)
+
+
+@router.post(
+    "/{application_id}/disbursement/covenants/{code}/verify",
+    response_model=DisbursementGateStatus,
+    summary="Verificar o levantar condición precedente para desembolso",
+    description="Registra la verificación documental o exoneración de un covenant con notas de auditoría (SPEC-14).",
+)
+async def verify_covenant(
+    application_id: str,
+    code: str,
+    payload: VerifyCovenantRequestSchema,
+    use_case: Annotated[
+        VerifyCovenantUseCase, Depends(get_verify_covenant_use_case)
+    ],
+) -> DisbursementGateStatus:
+    return await use_case.execute(
+        application_id=application_id,
+        code=code,
+        verified_by=payload.verified_by,
+        notes=payload.notes,
+        status=payload.status,
+    )
+
+
+@router.post(
+    "/{application_id}/disbursement/execute",
+    response_model=DisbursementOrder,
+    summary="Ejecutar desembolso, orden de giro y emisión de pagaré digital",
+    description="Formaliza la emisión del pagaré desmaterializado y la orden de transferencia ACH (SPEC-14).",
+)
+async def execute_disbursement(
+    application_id: str,
+    payload: ExecuteDisbursementRequestSchema,
+    use_case: Annotated[
+        ExecuteDisbursementUseCase, Depends(get_execute_disbursement_use_case)
+    ],
+) -> DisbursementOrder:
+    order = await use_case.execute(
+        application_id=application_id,
+        destination_bank=payload.destination_bank,
+        destination_account_number=payload.destination_account_number,
+        account_type=payload.account_type,
+    )
+    await global_event_broadcaster.broadcast(
+        f"event: disbursement_executed\ndata: {{\"application_id\": \"{application_id}\", \"order_id\": \"{order.order_id}\", \"net_amount\": {order.liquidation.net_disbursement_usd}}}\n\n"
+    )
+    return order
+
 
 
 

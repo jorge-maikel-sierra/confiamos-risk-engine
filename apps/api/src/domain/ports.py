@@ -12,6 +12,11 @@ from src.domain.committee import (
     CommitteeVote,
     GovernanceRequirement,
 )
+from src.domain.disbursement import (
+    CovenantFulfillmentStatus,
+    DisbursementGateStatus,
+    DisbursementOrder,
+)
 from src.domain.metrics import FinancialHealthMetrics
 from src.domain.pricing import AmortizationSystem, PricingProposal
 from src.domain.state import UnderwritingVerdict
@@ -171,6 +176,39 @@ class CommitteeGovernancePort(Protocol):
     ) -> CommitteeResolution:
         """Recupera el acta resolutiva o el estado actual de deliberación."""
         ...
+
+
+class DisbursementPort(Protocol):
+    """Puerto de dominio para la compuerta de desembolso, liquidación y pagaré digital (SPEC-14)."""
+
+    async def get_gate_status(
+        self,
+        application_id: str,
+    ) -> DisbursementGateStatus:
+        """Consulta la elegibilidad y condiciones precedentes del crédito."""
+        ...
+
+    async def verify_covenant(
+        self,
+        application_id: str,
+        code: str,
+        verified_by: str,
+        notes: str | None = None,
+        status: CovenantFulfillmentStatus = CovenantFulfillmentStatus.FULFILLED,
+    ) -> DisbursementGateStatus:
+        """Verifica o exonera una condición precedente para el desembolso."""
+        ...
+
+    async def execute_disbursement(
+        self,
+        application_id: str,
+        destination_bank: str,
+        destination_account_number: str,
+        account_type: str = "AHORROS",
+    ) -> DisbursementOrder:
+        """Formaliza la emisión del pagaré y ejecuta la orden de giro."""
+        ...
+
 
 
 

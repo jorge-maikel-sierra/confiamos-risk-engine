@@ -23,6 +23,7 @@ import {
   Activity,
   Scale,
   Users,
+  Landmark,
 } from "lucide-react";
 import {
   fetchUnderwritingById,
@@ -36,6 +37,7 @@ import { MetricCard } from "@/components/MetricCard";
 import { VerdictBadge } from "@/components/VerdictBadge";
 import { AnomalyAlertList } from "@/components/AnomalyAlertList";
 import { CommitteeGovernanceCard } from "@/components/CommitteeGovernanceCard";
+import { DisbursementGateCard } from "@/components/DisbursementGateCard";
 import { HumanReviewForm } from "@/components/HumanReviewForm";
 import { ScorecardCard } from "@/components/ScorecardCard";
 import { StressTestingSimulator } from "@/components/StressTestingSimulator";
@@ -481,12 +483,41 @@ export default function UnderwritingDetailPage() {
         />
       </section>
 
-      {/* 10. Sellado Criptográfico e Integridad de Datos (SPEC-07) */}
+      {/* 10. Compuerta de Desembolso, Liquidación Cooperativa y Pagaré Digital (SPEC-14) */}
+      <section className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-base font-bold text-slate-900 tracking-tight flex items-center gap-2">
+            <Landmark className="w-5 h-5 text-emerald-600" />
+            <span>10. Compuerta de Desembolso, Liquidación y Pagaré Digital (SPEC-14)</span>
+          </h2>
+          <span className="text-xs font-semibold text-slate-500 bg-slate-100 px-3 py-1 rounded-full border border-slate-200">
+            Control de Covenants & Giro ACH
+          </span>
+        </div>
+        <DisbursementGateCard
+          applicationId={record.application_id}
+          initialOrder={record.disbursement_order}
+          onDisbursementExecuted={(newOrder) => {
+            setRecord((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    disbursement_order: newOrder,
+                    current_step: "DISBURSED",
+                    is_completed: true,
+                  }
+                : null
+            );
+          }}
+        />
+      </section>
+
+      {/* 11. Sellado Criptográfico e Integridad de Datos (SPEC-07) */}
       <section className="space-y-3">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <h2 className="text-base font-bold text-slate-900 tracking-tight flex items-center gap-2">
             <ShieldCheck className="w-5 h-5 text-blue-600" />
-            <span>10. Auditoría y Sellado Criptográfico de Integridad (SHA-256)</span>
+            <span>11. Auditoría y Sellado Criptográfico de Integridad (SHA-256)</span>
           </h2>
           <button
             onClick={handleVerifySeal}

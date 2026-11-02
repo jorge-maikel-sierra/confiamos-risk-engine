@@ -98,6 +98,18 @@ class IUnderwritingRepository(ABC):
         """Persiste el acta resolutiva del comité y actualiza el estado general si es final (SPEC-13)."""
         ...
 
+    @abstractmethod
+    async def save_disbursement_order(
+        self,
+        application_id: str,
+        disbursement_order: dict[str, Any],
+        is_completed: bool = False,
+        current_step: str = "DISBURSED",
+    ) -> dict[str, Any]:
+        """Persiste la orden de giro, pagaré y estado de covenants del desembolso (SPEC-14)."""
+        ...
+
+
 
 
 

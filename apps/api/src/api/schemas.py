@@ -9,6 +9,11 @@ from src.domain.committee import (
     CommitteeVoteType,
     CreditCovenant,
 )
+from src.domain.disbursement import (
+    CovenantFulfillmentStatus,
+    DisbursementGateStatus,
+    DisbursementOrder,
+)
 from src.domain.pricing import AmortizationSystem, PricingProposal
 from src.domain.scoring import CreditScorecardResult
 from src.domain.state import UnderwritingVerdict
@@ -86,6 +91,7 @@ class UnderwriteResponseSchema(BaseModel):
     collateral_analysis: UnderwritingCollateralAnalysis | None = None
     pricing_proposal: PricingProposal | None = None
     committee_resolution: CommitteeResolution | None = None
+    disbursement_order: DisbursementOrder | None = None
     human_approved: bool | None = None
     human_notes: str | None = None
     errors: list[str] = Field(default_factory=list)
@@ -159,6 +165,26 @@ class CastVoteRequestSchema(BaseModel):
     covenants: list[CreditCovenant] = Field(
         default_factory=list, description="Covenants resolutivos o condiciones precedentes impuestas"
     )
+
+
+class VerifyCovenantRequestSchema(BaseModel):
+    """Payload para verificar o exonerar un covenant precedente (SPEC-14)."""
+
+    verified_by: str = Field(description="Identificador o nombre del oficial de cartera que valida")
+    notes: str | None = Field(default=None, description="Observaciones o número de radicado/póliza de respaldo")
+    status: CovenantFulfillmentStatus = Field(
+        default=CovenantFulfillmentStatus.FULFILLED,
+        description="Nuevo estado del covenant (FULFILLED o WAIVED)",
+    )
+
+
+class ExecuteDisbursementRequestSchema(BaseModel):
+    """Payload para ejecutar la orden de giro bancario y emitir el pagaré (SPEC-14)."""
+
+    destination_bank: str = Field(min_length=2, description="Banco o entidad financiera destino del giro")
+    destination_account_number: str = Field(min_length=5, description="Número de cuenta de ahorros o corriente")
+    account_type: str = Field(default="AHORROS", description="Tipo de cuenta: AHORROS o CORRIENTE")
+
 
 
 

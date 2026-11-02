@@ -31,6 +31,11 @@ from src.application.use_cases.manage_committee import (
     EvaluateGovernanceLevelUseCase,
     GetCommitteeResolutionUseCase,
 )
+from src.application.use_cases.manage_disbursement import (
+    ExecuteDisbursementUseCase,
+    GetDisbursementGateStatusUseCase,
+    VerifyCovenantUseCase,
+)
 from src.application.use_cases.manage_pricing import (
     GeneratePricingUseCase,
     GetPricingUseCase,
@@ -295,6 +300,34 @@ def get_get_committee_resolution_use_case(
 ) -> GetCommitteeResolutionUseCase:
     """Construye GetCommitteeResolutionUseCase (SPEC-13)."""
     return GetCommitteeResolutionUseCase(repository=repo, evaluate_use_case=evaluate_use_case)
+
+
+def get_get_disbursement_gate_status_use_case(
+    repo: Annotated[IUnderwritingRepository, Depends(get_underwriting_repository)],
+) -> GetDisbursementGateStatusUseCase:
+    """Construye GetDisbursementGateStatusUseCase (SPEC-14)."""
+    return GetDisbursementGateStatusUseCase(repository=repo)
+
+
+def get_verify_covenant_use_case(
+    repo: Annotated[IUnderwritingRepository, Depends(get_underwriting_repository)],
+    gate_status_use_case: Annotated[
+        GetDisbursementGateStatusUseCase, Depends(get_get_disbursement_gate_status_use_case)
+    ],
+) -> VerifyCovenantUseCase:
+    """Construye VerifyCovenantUseCase (SPEC-14)."""
+    return VerifyCovenantUseCase(repository=repo, get_gate_status_use_case=gate_status_use_case)
+
+
+def get_execute_disbursement_use_case(
+    repo: Annotated[IUnderwritingRepository, Depends(get_underwriting_repository)],
+    gate_status_use_case: Annotated[
+        GetDisbursementGateStatusUseCase, Depends(get_get_disbursement_gate_status_use_case)
+    ],
+) -> ExecuteDisbursementUseCase:
+    """Construye ExecuteDisbursementUseCase (SPEC-14)."""
+    return ExecuteDisbursementUseCase(repository=repo, get_gate_status_use_case=gate_status_use_case)
+
 
 
 

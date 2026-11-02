@@ -155,6 +155,22 @@ class InMemoryUnderwritingRepository(IUnderwritingRepository):
                 record["human_notes"] = notes
         return record
 
+    async def save_disbursement_order(
+        self,
+        application_id: str,
+        disbursement_order: dict[str, Any],
+        is_completed: bool = False,
+        current_step: str = "DISBURSED",
+    ) -> dict[str, Any]:
+        record = self._storage.get(application_id)
+        if not record:
+            raise KeyError(f"Solicitud {application_id} no encontrada en repositorio en memoria.")
+        record["disbursement_order"] = disbursement_order
+        if is_completed:
+            record["is_completed"] = True
+            record["current_step"] = current_step
+        return record
+
 
 
 
@@ -330,6 +346,28 @@ class PostgresUnderwritingRepository(IUnderwritingRepository):
                 model.human_approved = approved
             if notes is not None:
                 model.human_notes = notes
+
+        await self.session.flush()
+        await self.session.refresh(model)
+        return model.to_dict()
+
+    async def save_disbursement_order(
+        self,
+        application_id: str,
+        disbursement_order: dict[str, Any],
+        is_completed: bool = False,
+        current_step: str = "DISBURSED",
+    ) -> dict[str, Any]:
+        stmt = select(CreditApplicationModel).where(CreditApplicationModel.id == application_id)
+        result = await self.session.execute(stmt)
+        model = result.scalar_one_or_none()
+        if not model:
+            raise KeyError(f"Solicitud {application_id} no encontrada en base de datos.")
+
+        model.disbursement_order = disbursement_order
+        if is_completed:
+            model.is_completed = True
+            model.current_step = current_step
 
         await self.session.flush()
         await self.session.refresh(model)

@@ -34,6 +34,11 @@ from src.application.use_cases.manage_committee import (
     EvaluateGovernanceLevelUseCase,
     GetCommitteeResolutionUseCase,
 )
+from src.application.use_cases.manage_disbursement import (
+    ExecuteDisbursementUseCase,
+    GetDisbursementGateStatusUseCase,
+    VerifyCovenantUseCase,
+)
 from src.application.use_cases.manage_pricing import (
     GeneratePricingUseCase,
     GetPricingUseCase,
@@ -78,4 +83,7 @@ __all__ = [
     "EvaluateGovernanceLevelUseCase",
     "CastCommitteeVoteUseCase",
     "GetCommitteeResolutionUseCase",
+    "GetDisbursementGateStatusUseCase",
+    "VerifyCovenantUseCase",
+    "ExecuteDisbursementUseCase",
 ]

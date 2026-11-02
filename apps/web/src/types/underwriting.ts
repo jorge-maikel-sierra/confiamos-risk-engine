@@ -49,6 +49,7 @@ export interface UnderwritingRecord {
   collateral_analysis?: UnderwritingCollateralAnalysis | null;
   pricing_proposal?: PricingProposal | null;
   committee_resolution?: CommitteeResolution | null;
+  disbursement_order?: DisbursementOrder | null;
   human_approved: boolean | null;
   human_notes: string | null;
   errors: string[];
@@ -320,6 +321,66 @@ export interface CommitteeResolution {
   offer_expires_at: string | null;
   is_final: boolean;
 }
+
+export type CovenantFulfillmentStatus = "PENDING" | "FULFILLED" | "WAIVED";
+
+export interface CovenantFulfillmentRecord {
+  code: string;
+  description: string;
+  covenant_type?: string;
+  due_days: number;
+  status: CovenantFulfillmentStatus;
+  verified_by?: string | null;
+  verified_at?: string | null;
+  evidence_notes?: string | null;
+}
+
+export interface DisbursementDeductions {
+  gross_amount_usd: number;
+  social_contributions_pct: number;
+  social_contributions_usd: number;
+  solidarity_fund_usd: number;
+  insurance_first_month_usd: number;
+  total_deductions_usd: number;
+  net_disbursement_usd: number;
+}
+
+export interface PromissoryNote {
+  note_number: string;
+  debtor_name: string;
+  debtor_id: string;
+  principal_amount_usd: number;
+  applied_tea: number;
+  term_months: number;
+  issued_at: string;
+  maturity_date: string;
+  acceleration_clause_accepted: boolean;
+}
+
+export interface DisbursementOrder {
+  order_id: string;
+  application_id: string;
+  liquidation: DisbursementDeductions;
+  promissory_note: PromissoryNote;
+  destination_bank: string;
+  destination_account_number: string;
+  account_type: string;
+  covenants: CovenantFulfillmentRecord[];
+  status: string;
+  disbursed_at: string;
+}
+
+export interface DisbursementGateStatus {
+  application_id: string;
+  is_eligible: boolean;
+  resolution_status: string;
+  pending_covenants_count: number;
+  covenants: CovenantFulfillmentRecord[];
+  liquidation_preview: DisbursementDeductions;
+  disbursement_order?: DisbursementOrder | null;
+  blocking_reasons: string[];
+}
+
 
 
 

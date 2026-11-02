@@ -223,6 +223,21 @@ STORIES_CATALOG: dict[int, dict[str, Any]] = {
         ),
         "hashtags": ["#CreditGovernance", "#BankingWorkflow", "#Fintech"],
     },
+    14: {
+        "hook": (
+            "El comité ya aprobó el crédito, pero girar la plata sin verificar las condiciones "
+            "previas es la receta perfecta para perder el dinero y la garantía."
+        ),
+        "conflict": (
+            "En el apuro operativo se desembolsa sin exigir los seguros o las hipotecas inscritas, "
+            "y sin retener los aportes sociales estatutarios que exige la cooperativa."
+        ),
+        "solution": (
+            "Creamos la compuerta de desembolso (Disbursement Gate, SPEC-14): bloqueo estricto por "
+            "covenants, liquidación neta cooperativa (aportes 2%, auxilio y seguro) y pagaré digital."
+        ),
+        "hashtags": ["#DisbursementGate", "#CreditOperations", "#Fintech"],
+    },
 }
 
 

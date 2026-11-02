@@ -199,7 +199,7 @@ STORIES_CATALOG: dict[int, dict[str, Any]] = {
             "subsidia al riesgoso y expulsa al buen pagador a la banca comercial."
         ),
         "conflict": (
-            "Fijar precios a ojo o con tasas fijas ignora la pérdida esperada (PD * LGD) y "
+            "Fijar precios a ojo o con tasas fijas ignora la pérdida esperada (PD × LGD) y "
             "corre el peligro de sobrepasar el tope legal de usura de la Superintendencia."
         ),
         "solution": (

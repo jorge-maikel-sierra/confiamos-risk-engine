@@ -120,7 +120,6 @@ class TelegramNotifier:
         payload = {
             "chat_id": self.chat_id,
             "text": formatted_message,
-            "parse_mode": "Markdown",
             "disable_web_page_preview": False,
         }
 
